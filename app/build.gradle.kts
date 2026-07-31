@@ -10,7 +10,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.unlimited.vpn"
+        applicationId = "com.bestfreevpnproxy.app"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
