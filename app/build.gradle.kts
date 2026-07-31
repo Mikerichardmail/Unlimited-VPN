@@ -10,7 +10,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.fastsecure.vpn"
+        applicationId = "com.unlimited.vpn"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
