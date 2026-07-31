@@ -226,7 +226,7 @@ fun OnboardingScreen(onStartTrial: () -> Unit, onRestore: () -> Unit) {
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "ShieldVPN",
+                text = "Unlimited VPN",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.White
@@ -351,7 +351,7 @@ fun PaywallScreen(onClose: () -> Unit, onPurchaseComplete: (String) -> Unit) {
 
         // Core Pitch
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Try ShieldVPN Risk-Free", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
+            Text("Try Unlimited VPN Risk-Free", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White, textAlign = TextAlign.Center)
             Spacer(modifier = Modifier.height(6.dp))
             Text("No payment due today. Enjoy 3 days free, then cancel anytime in Google Play.", fontSize = 13.sp, color = Color.LightGray, textAlign = TextAlign.Center)
             
@@ -616,7 +616,7 @@ fun HomeScreen(
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
-                        Text("ShieldVPN", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+                        Text("Unlimited VPN", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
                         Text("QUANTUM SECURE", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = NeonCyan, letterSpacing = 1.sp)
                     }
                 }
@@ -1136,13 +1136,13 @@ fun SettingsScreen(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "Contact Support: support@shieldvpn.in",
+                text = "Contact Support: support@unlimitedvpn.in",
                 fontSize = 13.sp,
                 color = Color.LightGray
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "ShieldVPN Version 1.0 (Build 100)",
+                text = "Unlimited VPN Version 1.0 (Build 100)",
                 fontSize = 11.sp,
                 color = Color.DarkGray
             )

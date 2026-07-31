@@ -1,6 +1,6 @@
-# PulseVPN GitHub Pages Website
+# Unlimited VPN GitHub Pages Website
 
-This directory contains the production-ready static website for **PulseVPN** designed for hosting via **GitHub Pages**.
+This directory contains the production-ready static website for **Unlimited VPN** designed for hosting via **GitHub Pages**.
 
 ## 🚀 Quick Deployment Guide
 

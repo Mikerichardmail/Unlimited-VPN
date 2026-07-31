@@ -1,4 +1,4 @@
-/* PulseVPN Interactive UI Script */
+/* Unlimited VPN Interactive UI Script */
 document.addEventListener('DOMContentLoaded', () => {
   // Mobile Navigation Drawer Toggle
   const mobileToggle = document.getElementById('mobileToggle');

@@ -1,4 +1,4 @@
-/* PulseVPN Live Server Latency Simulation Widget */
+/* Unlimited VPN Live Server Latency Simulation Widget */
 document.addEventListener('DOMContentLoaded', () => {
   const serverListContainer = document.getElementById('serverPingList');
   if (!serverListContainer) return;
@@ -18,9 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // Generate realistic jitter
       const currentPing = server.basePing + Math.floor(Math.random() * server.range);
       const pingPercent = Math.min(100, Math.max(10, 100 - (currentPing / 2)));
-      
-      let pingClass = 'accent-green';
-      if (currentPing > 100) pingClass = 'accent-orange';
 
       const itemHtml = `
         <div class="server-item">

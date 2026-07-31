@@ -13,7 +13,7 @@
         android:name="com.vpn.android.VpnApplication"
         android:allowBackup="false"
         android:icon="@android:drawable/ic_lock_power_off"
-        android:label="ShieldVPN"
+        android:label="Unlimited VPN"
         android:roundIcon="@android:drawable/ic_lock_power_off"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar"
