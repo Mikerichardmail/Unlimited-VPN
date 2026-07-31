@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Privacy Policy - PulseVPN</title>
+  <meta name="description" content="PulseVPN Privacy Policy - Strict 100% No-Logs Policy, zero activity tracking, and Google Play Store compliance guidelines.">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="index.html" class="nav-brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+        <span>Pulse<span class="gradient-text">VPN</span></span>
+      </a>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="features.html">Features</a></li>
+        <li><a href="pricing.html">Pricing</a></li>
+        <li><a href="support.html">Support</a></li>
+        <li><a href="privacy.html" class="active">Privacy</a></li>
+        <li><a href="terms.html">Terms</a></li>
+      </ul>
+
+      <div class="nav-actions">
+        <a href="pricing.html" class="btn btn-primary btn-sm">Start 3-Day Trial</a>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle Navigation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Header -->
+  <section class="section" style="padding-top: 160px; padding-bottom: 40px;">
+    <div class="container">
+      <div class="section-header">
+        <span class="section-tag">GOOGLE PLAY COMPLIANT</span>
+        <h1 class="section-title">Privacy Policy & No-Logs Guarantee</h1>
+        <p class="section-desc">Last updated: July 31, 2026. Your digital privacy and anonymity are our absolute priority.</p>
+      </div>
+
+      <div class="legal-content">
+        <h2 id="no-logs">1. Strict 100% No-Logs Guarantee</h2>
+        <p>
+          PulseVPN operates under a strict, non-negotiable <strong>No-Logs Policy</strong>. We do NOT record, log, store, or monitor any of the following data under any circumstances:
+        </p>
+        <ul>
+          <li><strong>No Traffic Logs:</strong> We do not log destination IP addresses, websites visited, DNS requests, or application data transferred through our WireGuard® servers.</li>
+          <li><strong>No Connection Timestamps:</strong> We do not log connection start times, disconnection times, or session duration.</li>
+          <li><strong>No IP Address Logs:</strong> We do not log your real public IP address or the VPN IP address assigned to your device.</li>
+          <li><strong>No Bandwidth Tracking per User:</strong> We do not keep logs of individual data volume consumption.</li>
+        </ul>
+
+        <h2>2. Data Collected & Processed</h2>
+        <p>
+          To maintain active subscription access and deliver backend connection endpoints, we only process the minimal essential data:
+        </p>
+        <ul>
+          <li><strong>Account & Subscription Data:</strong> Anonymous purchase token generated via Google Play Billing API to verify active trial/subscription status. No credit card details are ever stored on PulseVPN servers.</li>
+          <li><strong>Anonymous Crash Reports:</strong> Optional, aggregated crash stack trace telemetry (without device identifiers or IP addresses) to fix Android app crashes.</li>
+        </ul>
+
+        <h2>3. WireGuard® Cryptography & Security</h2>
+        <p>
+          PulseVPN utilizes the modern <strong>WireGuard®</strong> VPN protocol with high-grade <strong>ChaCha20-Poly1305</strong> encryption. Ephemeral key exchanges occur dynamically via the Noise protocol. Key pairs are stored strictly in volatile RAM memory on VPN nodes and wiped upon container restart.
+        </p>
+
+        <h2>4. Third-Party Services & Google Play Billing</h2>
+        <p>
+          Payments and subscription management are handled securely through Google Play Store (Google LLC). Please review <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a> regarding payment credential processing. PulseVPN backend servers interact with Google Play Real-Time Developer Notifications (RTDN) webhooks purely to validate subscription active state tokens.
+        </p>
+
+        <h2>5. Children's Privacy</h2>
+        <p>
+          PulseVPN does not knowingly collect personal information from children under the age of 13. If you believe a child has submitted personal information, please contact us immediately for deletion.
+        </p>
+
+        <h2>6. Contact Privacy Officer</h2>
+        <p>
+          For privacy inquiries, audit reports, or legal notices, please reach out to our privacy compliance team at: <br>
+          <strong style="color: var(--primary);">privacy@pulsevpn-app.com</strong>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-bottom" style="border:none;">
+        <span>© 2026 PulseVPN. All rights reserved.</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

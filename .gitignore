@@ -1,0 +1,17 @@
+# Android / Gradle
+.gradle/
+build/
+app/build/
+backend/node_modules/
+backend/.wrangler/
+
+# IDE & OS
+.idea/
+*.iml
+.DS_Store
+Thumbs.db
+local.properties
+
+# Secrets
+*.keystore
+*.jks

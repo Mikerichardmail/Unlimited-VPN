@@ -1,0 +1,16 @@
+name = "vpn-api-worker"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+ENVIRONMENT = "production"
+PACKAGE_NAME = "com.fastsecure.vpn"
+
+# Secret environment variables (Set via `wrangler secret put <KEY>`):
+# - SUPABASE_URL
+# - SUPABASE_ANON_KEY
+# - SUPABASE_SERVICE_ROLE_KEY
+# - GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL
+# - GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY
+# - VPNRESELLERS_API_TOKEN
+# - WORKER_AUTH_SECRET
