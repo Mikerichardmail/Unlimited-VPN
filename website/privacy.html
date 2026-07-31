@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Privacy Policy - Unlimited VPN</title>
-  <meta name="description" content="Unlimited VPN Privacy Policy - Strict 100% No-Logs Policy, zero activity tracking, and Google Play Store compliance guidelines.">
+  <title>Privacy Policy - Unlimited VPN (Google Play Compliant)</title>
+  <meta name="description" content="Unlimited VPN Privacy Policy - Fully compliant with Google Play Store Developer Policies, featuring a strict 100% No-Logs Policy and explicit Data Safety disclosures.">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
 </head>
@@ -38,55 +38,120 @@
     </div>
   </nav>
 
-  <!-- Header -->
+  <!-- Privacy Policy Content Header -->
   <section class="section" style="padding-top: 160px; padding-bottom: 40px;">
     <div class="container">
       <div class="section-header">
-        <span class="section-tag">GOOGLE PLAY COMPLIANT</span>
-        <h1 class="section-title">Privacy Policy & No-Logs Guarantee</h1>
-        <p class="section-desc">Last updated: July 31, 2026. Your digital privacy and anonymity are our absolute priority.</p>
+        <span class="section-tag">GOOGLE PLAY DEVELOPER POLICY COMPLIANT</span>
+        <h1 class="section-title">Privacy Policy & Data Safety Disclosures</h1>
+        <p class="section-desc">Effective Date: July 31, 2026. This document explains how Unlimited VPN handles data in accordance with Google Play Store policies and international data protection laws.</p>
       </div>
 
       <div class="legal-content">
-        <h2 id="no-logs">1. Strict 100% No-Logs Guarantee</h2>
+        <h2>1. Overview & Commitment</h2>
         <p>
-          Unlimited VPN operates under a strict, non-negotiable <strong>No-Logs Policy</strong>. We do NOT record, log, store, or monitor any of the following data under any circumstances:
+          At <strong>Unlimited VPN</strong>, we believe digital privacy is a fundamental human right. Our Android application is designed around data minimization: we collect only the bare minimum technical data required to validate your active subscription and establish secure WireGuard® encrypted tunnels.
+        </p>
+
+        <h2 id="no-logs">2. Strict 100% No-Logs Guarantee</h2>
+        <p>
+          Unlimited VPN operates under a strict, non-negotiable <strong>No-Logs Policy</strong>. We do NOT record, log, monitor, sell, or store any of the following data under any circumstances:
         </p>
         <ul>
-          <li><strong>No Traffic Logs:</strong> We do not log destination IP addresses, websites visited, DNS requests, or application data transferred through our WireGuard® servers.</li>
-          <li><strong>No Connection Timestamps:</strong> We do not log connection start times, disconnection times, or session duration.</li>
-          <li><strong>No IP Address Logs:</strong> We do not log your real public IP address or the VPN IP address assigned to your device.</li>
-          <li><strong>No Bandwidth Tracking per User:</strong> We do not keep logs of individual data volume consumption.</li>
+          <li><strong>Zero Traffic & Browsing Logs:</strong> We do not log destination IP addresses, domain names, websites visited, DNS queries, or app data transferred over the VPN tunnel.</li>
+          <li><strong>Zero Real IP Address Logs:</strong> Your real public IP address assigned by your Wi-Fi or cellular provider is never logged or linked to your session.</li>
+          <li><strong>Zero Connection Timestamps:</strong> We do not record connection start times, disconnection times, or session duration logs.</li>
+          <li><strong>Zero Individual Bandwidth Records:</strong> We do not keep historical logs of individual user data consumption.</li>
         </ul>
 
-        <h2>2. Data Collected & Processed</h2>
+        <h2>3. Google Play Data Safety Disclosures & Data Collection</h2>
         <p>
-          To maintain active subscription access and deliver backend connection endpoints, we only process the minimal essential data:
+          In compliance with the <strong>Google Play Data Safety Policy</strong>, below is the complete breakdown of data processed by the Unlimited VPN Android app:
+        </p>
+        <table style="width:100%; border-collapse:collapse; margin:16px 0 24px; color:var(--text-main);">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border-glass); color:var(--primary); text-align:left;">
+              <th style="padding:12px;">Data Category</th>
+              <th style="padding:12px;">Data Element</th>
+              <th style="padding:12px;">Purpose & Usage</th>
+              <th style="padding:12px;">Sharing / Storage</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border-glass);">
+              <td style="padding:12px; font-weight:600;">Device Identifiers</td>
+              <td style="padding:12px;">Anonymous Installation ID (UUID)</td>
+              <td style="padding:12px;">Generated locally on first launch to link your 3-day trial & subscription state to your device.</td>
+              <td style="padding:12px; color:var(--accent-green);">Never Shared with 3rd parties</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border-glass);">
+              <td style="padding:12px; font-weight:600;">Cryptographic Keys</td>
+              <td style="padding:12px;">WireGuard Public Key</td>
+              <td style="padding:12px;">Transmitted to backend to register your device on the server peer list and assign an internal VPN virtual IP.</td>
+              <td style="padding:12px; color:var(--accent-green);">Ephemeral / Volatile Server Memory</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border-glass);">
+              <td style="padding:12px; font-weight:600;">Financial & Purchase Data</td>
+              <td style="padding:12px;">Google Play Purchase Token</td>
+              <td style="padding:12px;">Validated via Google Play Billing API to confirm active subscription or 3-day trial entitlement.</td>
+              <td style="padding:12px; color:var(--accent-green);">Processed securely via Google Play</td>
+            </tr>
+            <tr>
+              <td style="padding:12px; font-weight:600;">App Settings</td>
+              <td style="padding:12px;">Server Preference & Kill Switch State</td>
+              <td style="padding:12px;">Saved locally on your device via encrypted Android DataStore preferences.</td>
+              <td style="padding:12px; color:var(--accent-green);">Stored 100% locally on device</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>4. Android Permissions Required & Justification</h2>
+        <p>
+          To function seamlessly on Android devices, Unlimited VPN requests the following explicit platform permissions:
         </p>
         <ul>
-          <li><strong>Account & Subscription Data:</strong> Anonymous purchase token generated via Google Play Billing API to verify active trial/subscription status. No credit card details are ever stored on Unlimited VPN servers.</li>
-          <li><strong>Anonymous Crash Reports:</strong> Optional, aggregated crash stack trace telemetry (without device identifiers or IP addresses) to fix Android app crashes.</li>
+          <li><code>INTERNET</code>: Required to send/receive encrypted WireGuard network packets and check backend API status.</li>
+          <li><code>ACCESS_NETWORK_STATE</code>: Required to detect changes between Wi-Fi and mobile data connections.</li>
+          <li><code>BIND_VPN_SERVICE</code>: Android platform permission allowing the app to configure kernel-level virtual network adapters.</li>
+          <li><code>FOREGROUND_SERVICE</code> & <code>FOREGROUND_SERVICE_SPECIAL_USE (vpn)</code>: Required by Android 14+ (API 34) to maintain active VPN protection while the app runs in the background.</li>
+          <li><code>RECEIVE_BOOT_COMPLETED</code>: Required to restore auto-connect VPN protection upon device reboot if enabled in settings.</li>
         </ul>
 
-        <h2>3. WireGuard® Cryptography & Security</h2>
+        <h2>5. Encryption & Security Architecture</h2>
         <p>
-          Unlimited VPN utilizes the modern <strong>WireGuard®</strong> VPN protocol with high-grade <strong>ChaCha20-Poly1305</strong> encryption. Ephemeral key exchanges occur dynamically via the Noise protocol. Key pairs are stored strictly in volatile RAM memory on VPN nodes and wiped upon container restart.
+          Unlimited VPN uses state-of-the-art <strong>WireGuard®</strong> protocol cryptography featuring <strong>ChaCha20-Poly1305</strong> symmetric encryption, <strong>Curve25519</strong> key exchange, and <strong>BLAKE2s</strong> hashing. Communication with backend control servers is protected using <strong>TLS 1.3</strong> and HMAC-SHA256 request authentication.
         </p>
 
-        <h2>4. Third-Party Services & Google Play Billing</h2>
+        <h2>6. Third-Party Services</h2>
         <p>
-          Payments and subscription management are handled securely through Google Play Store (Google LLC). Please review <a href="https://policies.google.com/privacy" target="_blank">Google Privacy Policy</a> regarding payment credential processing. Unlimited VPN backend servers interact with Google Play Real-Time Developer Notifications (RTDN) webhooks purely to validate subscription active state tokens.
+          We rely on trusted infrastructure providers operating under strict security standards:
+        </p>
+        <ul>
+          <li><strong>Google Play Billing (Google LLC):</strong> Handles all subscription transactions, 3-day free trial tracking, and billing processing. No credit card details ever reach Unlimited VPN servers.</li>
+          <li><strong>Cloudflare Workers & Supabase:</strong> Serverless API layer and database infrastructure used strictly for anonymous device peer registration and subscription entitlement validation.</li>
+        </ul>
+
+        <h2>7. Data Retention & User Data Deletion Rights</h2>
+        <p>
+          In accordance with Google Play's User Data Deletion policies, you have full control over your data:
+        </p>
+        <ul>
+          <li><strong>Local Data Wiping:</strong> You can wipe all local settings, WireGuard keys, and installation identifiers at any time by navigating to <i>Android Settings → Apps → Unlimited VPN → Clear Storage / Data</i> or uninstalling the app.</li>
+          <li><strong>Server Data Deletion Request:</strong> You may request complete erasure of your anonymous installation ID record and subscription entitlement tokens from our backend database by emailing our team at <strong style="color:var(--primary);">privacy@unlimitedvpn.in</strong>. Requests are processed within 48 hours.</li>
+        </ul>
+
+        <h2>8. Children's Privacy (COPPA Compliance)</h2>
+        <p>
+          Unlimited VPN does not knowingly collect or solicit personal information from children under 13 years of age. If we learn that we have inadvertently collected data from a child under 13, we will delete that data immediately.
         </p>
 
-        <h2>5. Children's Privacy</h2>
+        <h2>9. Contact Privacy Compliance Officer</h2>
         <p>
-          Unlimited VPN does not knowingly collect personal information from children under the age of 13. If you believe a child has submitted personal information, please contact us immediately for deletion.
+          If you have questions, feedback, or concerns regarding our privacy practices, please contact our dedicated Privacy Compliance Officer:
         </p>
-
-        <h2>6. Contact Privacy Officer</h2>
-        <p>
-          For privacy inquiries, audit reports, or legal notices, please reach out to our privacy compliance team at: <br>
-          <strong style="color: var(--primary);">privacy@unlimitedvpn.in</strong>
+        <p style="margin-top: 12px;">
+          📧 Email: <strong style="color: var(--primary);">privacy@unlimitedvpn.in</strong><br>
+          🌐 Website: <a href="https://mikerichardmail.github.io/Unlimited-VPN/">https://mikerichardmail.github.io/Unlimited-VPN/</a>
         </p>
       </div>
     </div>
@@ -96,7 +161,7 @@
   <footer class="footer">
     <div class="container">
       <div class="footer-bottom" style="border:none;">
-        <span>© 2026 Unlimited VPN. All rights reserved.</span>
+        <span>© 2026 Unlimited VPN. All rights reserved. Google Play is a trademark of Google LLC.</span>
       </div>
     </div>
   </footer>
