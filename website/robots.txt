@@ -1,0 +1,6 @@
+# Robots.txt for bestvpnproxy.in (GitHub Pages)
+User-agent: *
+Allow: /
+
+# Sitemap Location
+Sitemap: https://bestvpnproxy.in/sitemap.xml
