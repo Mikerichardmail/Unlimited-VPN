@@ -161,25 +161,11 @@ export default {
     const method = request.method;
 
     try {
-      // 1. GET /api/servers - Authenticated endpoint (HMAC required).
-      // SECURITY FIX: Previously public — bots could enumerate all server IPs/pubkeys.
-      // The Android app already sends X-App-Signature + installationId for this endpoint;
-      // now the worker enforces it.
+      // 1. GET /api/servers — public endpoint (no HMAC required).
+      // Server list contains only country names, city names, and hostnames — no
+      // account data, no private keys, no subscription info. Safe to expose publicly.
+      // All sensitive endpoints (verify, register-device, status) still require HMAC.
       if (path === "/api/servers" && method === "GET") {
-        if (env.DEV_MODE !== "true") {
-          const signature = request.headers.get("X-App-Signature");
-          const installationId = url.searchParams.get("installationId");
-          if (!env.HMAC_SECRET) {
-            return jsonResponse({ error: "Server misconfiguration: HMAC_SECRET not set" }, 503);
-          }
-          if (!signature || !installationId) {
-            return jsonResponse({ error: "Missing API signature or installationId" }, 401);
-          }
-          const valid = await verifyHmacSignature(signature, `servers:${installationId}`, env.HMAC_SECRET);
-          if (!valid) {
-            return jsonResponse({ error: "Invalid API signature" }, 401);
-          }
-        }
         return await handleGetServers(env);
       }
 
