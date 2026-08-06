@@ -351,10 +351,14 @@ async function handleVerify(request, env) {
   }
 
   // SECURITY: Real Play Store API verification if keys exist.
-  // paymentState must be 1 (payment received). Values:
-  //   0 = payment pending (e.g. cash/bank transfer), 1 = payment received, 2 = free trial
-  // We REJECT anything other than paymentState=1 to ensure no free trials or pending payments
-  // can provision a VPN account. The webhook will handle renewals and cancellations.
+  // Accepted paymentStates:
+  //   1 = payment received (real purchase)
+  //   2 = free trial / sandbox test card — provisioned so trial users get access;
+  //       Google enforces 1 trial per account per product, and the RTDN webhook
+  //       will disable the account if the user cancels before converting.
+  // Rejected:
+  //   0 = payment pending (cash/bank) — money not confirmed
+  //   3 = deferred upgrade — old plan still active, new plan not billed yet
   if (env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY) {
     try {
       const token = await getGoogleAuthToken(
@@ -362,7 +366,7 @@ async function handleVerify(request, env) {
         env.GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY
       );
       // Query subscription detail from Google Play Publisher API
-      const packageName = env.PACKAGE_NAME || "com.fastsecure.vpn";
+      const packageName = env.PACKAGE_NAME || "com.bestfreevpnproxy.app";
       const queryUrl = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/purchases/subscriptions/${planType}/tokens/${googlePurchaseToken}`;
       const verifyRes = await fetch(queryUrl, {
         headers: { "Authorization": `Bearer ${token}` }
@@ -370,17 +374,17 @@ async function handleVerify(request, env) {
       if (verifyRes.ok) {
         const verifyData = await verifyRes.json();
 
-        // SECURITY FIX: Reject non-paid purchase states.
-        // paymentState: 0=pending, 1=received, 2=free trial, 3=deferred upgrade
-        // Only paymentState===1 means the user has actually PAID us money.
-        if (verifyData.paymentState !== undefined && verifyData.paymentState !== 1) {
-          const stateNames = { 0: "payment pending", 2: "free trial", 3: "deferred upgrade" };
+        // Allow paymentState=1 (paid) and paymentState=2 (free trial / test card).
+        // Reject paymentState=0 (pending) and paymentState=3 (deferred upgrade).
+        const ALLOWED_STATES = [1, 2];
+        if (verifyData.paymentState !== undefined && !ALLOWED_STATES.includes(verifyData.paymentState)) {
+          const stateNames = { 0: "payment pending", 3: "deferred upgrade" };
           const stateName = stateNames[verifyData.paymentState] || `unknown (${verifyData.paymentState})`;
           console.warn(`[verify] Rejected purchase: paymentState=${verifyData.paymentState} (${stateName})`);
           return jsonResponse({
             success: false,
             error: "Purchase not confirmed",
-            detail: `Payment state is '${stateName}'. Only completed payments are accepted. No trials or pending payments.`
+            detail: `Payment state is '${stateName}'. Only completed payments and active trials are accepted.`
           }, 402);
         }
 
