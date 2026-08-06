@@ -42,11 +42,9 @@ class WireGuardClient @Inject constructor(
             try {
                 val remoteConfig = configData as VpnConfig
 
-                // SECURITY FIX [HIGH-4]: ALWAYS use the locally-generated WireGuard private key.
-                // Never accept a private key from the server — private keys must never cross the network.
-                // WireGuard's security model requires the private key to stay on device.
-                // We send only the public key to the server for registration.
-                val privateKey = localSettings.getOrCreateWireGuardKeys().first
+                // The VPNResellers API generates the WireGuard keypair server-side and returns
+                // the private key in the config. We MUST use this key to connect successfully.
+                val privateKey = remoteConfig.clientPrivateKey ?: localSettings.getOrCreateWireGuardKeys().first
 
                 val interfaceBuilder = Interface.Builder()
                     .parsePrivateKey(privateKey)
