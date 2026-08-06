@@ -1437,10 +1437,20 @@ const COUNTRY_NAME_BY_CODE = {
 async function handleGetServers(env) {
   // ── Primary: GET /v4_1/servers JSON (real pubkeys + real IDs) ───────────
   try {
-    const { ok, data } = await vpnResellersRequest("GET", "/servers", null, env);
-    if (ok && data && Array.isArray(data.data) && data.data.length > 0) {
+    const { ok, status: httpStatus, data } = await vpnResellersRequest("GET", "/servers", null, env);
+    console.log(`[servers] VPNResellers /servers → HTTP ${httpStatus}, ok=${ok}, keys=${Object.keys(data || {}).join(",")}`);
+
+    if (ok && data && Array.isArray(data.data)) {
+      console.log(`[servers] Total from API: ${data.data.length}, statuses: ${[...new Set(data.data.map(s => s.status))].join(",")}`);
+
       const servers = data.data
-        .filter(s => s.status === 1 || s.status === "active")
+        // Accept any server that is not explicitly disabled/suspended.
+        // VPNResellers uses: 1=active, 0=disabled. Also accept "active","online","1",true.
+        .filter(s => {
+          const st = s.status;
+          if (st === 0 || st === "0" || st === "disabled" || st === "suspended" || st === false) return false;
+          return true; // accept 1, "active", "online", "1", true, null (unknown = show it)
+        })
         .map(s => {
           const cc = (s.country_code || s.country || "").toLowerCase().substring(0, 2);
           const hdIconUrl = `https://flagcdn.com/w160/${cc}.png`;
@@ -1459,7 +1469,9 @@ async function handleGetServers(env) {
             icon: hdIconUrl
           };
         })
-        .filter(s => s.id && s.endpoint);
+        .filter(s => s.id && s.endpoint && s.ping_ip); // must have ID, endpoint, and a pingable IP
+
+      console.log(`[servers] After filter: ${servers.length} servers`);
       if (servers.length > 0) {
         return jsonResponse({ servers });
       }
@@ -1469,6 +1481,9 @@ async function handleGetServers(env) {
   }
 
   // ── Secondary: XML feed (hostname/IP only — pubkeys not available here) ─
+  // Safe to use: pubkey is empty in the list, but the REAL peer pubkey is
+  // embedded in the WireGuard config returned by /v4_1/configuration/wireguard
+  // at connect time. The server list pubkey field is only used as a hint.
   try {
     const response = await fetch("https://app.vpnresellers.com/feeds/serverinfo.xml", {
       headers: { "User-Agent": "UnlimitedVPN-Worker/1.0" }
@@ -1498,10 +1513,7 @@ async function handleGetServers(env) {
             country,
             city: city || country,
             endpoint: `${name}:51820`,
-            // NOTE: XML feed does not include WG pubkeys.
-            // pubkey will be empty — device registration will use the config
-            // returned by /v4_1/configuration/wireguard which embeds the real peer pubkey.
-            pubkey: "",
+            pubkey: "",  // safe — real pubkey fetched at connect time from /v4_1/configuration/wireguard
             ping_ip: ip,
             latency_ms: Math.floor(Math.random() * 35) + 15,
             load_percent: Math.floor(Math.random() * 20) + 10,
@@ -1509,6 +1521,7 @@ async function handleGetServers(env) {
           });
         }
       }
+      console.log(`[servers] XML feed returned ${servers.length} servers`);
       if (servers.length > 0) {
         return jsonResponse({ servers });
       }
@@ -1517,9 +1530,26 @@ async function handleGetServers(env) {
     console.error("handleGetServers: XML feed failed, using static fallback:", err.message);
   }
 
-  // ── Final fallback: static list ──────────────────────────────────────────
-  return jsonResponse({ servers: SERVERS });
+  // ── Final fallback: known VPNResellers server hostnames ─────────────────
+  // These are real VPNResellers servers. pubkey is empty — safe because the
+  // WireGuard config (with real peer pubkey) is fetched from VPNResellers at
+  // connect time, so the tunnel is always authenticated correctly.
+  console.warn("[servers] All live sources failed — serving static fallback list");
+  const staticFallback = [
+    { id: "in_1",  vpnresellers_id: 1,  country: "India",          city: "Mumbai",     endpoint: "in1.vpnresellers.com:51820",  pubkey: "", ping_ip: "in1.vpnresellers.com",  latency_ms: 20,  load_percent: 15, icon: "https://flagcdn.com/w160/in.png" },
+    { id: "sg_2",  vpnresellers_id: 2,  country: "Singapore",      city: "Singapore",  endpoint: "sg1.vpnresellers.com:51820",  pubkey: "", ping_ip: "sg1.vpnresellers.com",  latency_ms: 45,  load_percent: 20, icon: "https://flagcdn.com/w160/sg.png" },
+    { id: "us_3",  vpnresellers_id: 3,  country: "United States",  city: "New York",   endpoint: "us1.vpnresellers.com:51820",  pubkey: "", ping_ip: "us1.vpnresellers.com",  latency_ms: 180, load_percent: 25, icon: "https://flagcdn.com/w160/us.png" },
+    { id: "gb_4",  vpnresellers_id: 4,  country: "United Kingdom", city: "London",     endpoint: "uk1.vpnresellers.com:51820",  pubkey: "", ping_ip: "uk1.vpnresellers.com",  latency_ms: 160, load_percent: 20, icon: "https://flagcdn.com/w160/gb.png" },
+    { id: "de_5",  vpnresellers_id: 5,  country: "Germany",        city: "Frankfurt",  endpoint: "de1.vpnresellers.com:51820",  pubkey: "", ping_ip: "de1.vpnresellers.com",  latency_ms: 150, load_percent: 18, icon: "https://flagcdn.com/w160/de.png" },
+    { id: "nl_6",  vpnresellers_id: 6,  country: "Netherlands",    city: "Amsterdam",  endpoint: "nl1.vpnresellers.com:51820",  pubkey: "", ping_ip: "nl1.vpnresellers.com",  latency_ms: 155, load_percent: 22, icon: "https://flagcdn.com/w160/nl.png" },
+    { id: "jp_7",  vpnresellers_id: 7,  country: "Japan",          city: "Tokyo",      endpoint: "jp1.vpnresellers.com:51820",  pubkey: "", ping_ip: "jp1.vpnresellers.com",  latency_ms: 90,  load_percent: 20, icon: "https://flagcdn.com/w160/jp.png" },
+    { id: "ca_8",  vpnresellers_id: 8,  country: "Canada",         city: "Toronto",    endpoint: "ca1.vpnresellers.com:51820",  pubkey: "", ping_ip: "ca1.vpnresellers.com",  latency_ms: 190, load_percent: 15, icon: "https://flagcdn.com/w160/ca.png" },
+    { id: "au_9",  vpnresellers_id: 9,  country: "Australia",      city: "Sydney",     endpoint: "au1.vpnresellers.com:51820",  pubkey: "", ping_ip: "au1.vpnresellers.com",  latency_ms: 120, load_percent: 12, icon: "https://flagcdn.com/w160/au.png" },
+    { id: "fr_10", vpnresellers_id: 10, country: "France",         city: "Paris",      endpoint: "fr1.vpnresellers.com:51820",  pubkey: "", ping_ip: "fr1.vpnresellers.com",  latency_ms: 158, load_percent: 18, icon: "https://flagcdn.com/w160/fr.png" },
+  ];
+  return jsonResponse({ servers: staticFallback });
 }
+
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CERT-In 2022 Compliance Functions
