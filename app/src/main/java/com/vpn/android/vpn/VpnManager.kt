@@ -3,36 +3,30 @@ package com.vpn.android.vpn
 import android.content.Context
 import android.content.Intent
 import android.net.VpnService
+import android.util.Log
+import com.vpn.android.BuildConfig
 import com.vpn.android.data.VpnRepository
 import com.vpn.android.data.local.LocalSettingsManager
-import com.wireguard.android.backend.GoBackend
-import com.wireguard.android.backend.Tunnel
-import com.wireguard.config.Config
-import com.wireguard.config.Interface
-import com.wireguard.config.Peer
-import com.wireguard.config.InetNetwork
-import com.wireguard.config.InetEndpoint
-import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.net.InetAddress
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val TAG = "VpnManager"
+
 @Singleton
 class VpnManager @Inject constructor(
-    @ApplicationContext private val context: Context,
+    @param:ApplicationContext private val context: Context,
     private val repository: VpnRepository,
-    private val localSettings: LocalSettingsManager
+    private val localSettings: LocalSettingsManager,
+    private val wireGuardClient: WireGuardClient,
+    private val openVpnClient: OpenVpnClient
 ) {
-    private val goBackend = GoBackend(context)
-    private val vpnTunnel = VpnTunnel()
-
-    val vpnState: Flow<Tunnel.State> = vpnTunnel.state
+    // Current active client state could be tracked here, or just delegate to WG client state for now
+    val vpnState = wireGuardClient.state
+    
+    private var activeProtocol = "wireguard"
 
     /**
      * Check if VPN permission is required
@@ -42,65 +36,52 @@ class VpnManager @Inject constructor(
     }
 
     /**
-     * Start the VPN tunnel for the specified server location
+     * Start the VPN tunnel for the specified server location.
+     *
+     * @param serverLocation  The server ID to connect to (e.g. "in", "us", "sg")
+     * @param killSwitchEnabled  When true, ALL traffic is routed through the VPN (0.0.0.0/0).
+     *   This means if the VPN drops, no traffic flows at all — a true software kill switch.
+     *   When false, only the server-specified allowedIps are routed through the tunnel.
      */
-    suspend fun startVpn(serverLocation: String): Boolean = withContext(Dispatchers.IO) {
-        try {
-            // 1. Get or create keys
-            val (privateKey, _) = localSettings.getOrCreateWireGuardKeys()
+    suspend fun startVpn(serverLocation: String, killSwitchEnabled: Boolean = false, protocol: String = "wireguard"): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                activeProtocol = protocol
+                // 1. Register/Fetch device config from backend
+                val response = repository.registerDevice(serverLocation, protocol)
+                if (!response.success || response.config == null) {
+                    return@withContext false
+                }
 
-            // 2. Fetch device wireguard config from backend
-            val response = repository.registerDevice(serverLocation)
-            if (!response.success || response.config == null) {
-                return@withContext false
+                val remoteConfig = response.config
+
+                // 2. Delegate to the correct client
+                val success = if (protocol == "openvpn") {
+                    openVpnClient.start(serverLocation, killSwitchEnabled, remoteConfig.ovpnConfig ?: "")
+                } else {
+                    wireGuardClient.start(serverLocation, killSwitchEnabled, remoteConfig)
+                }
+
+                if (success) {
+                    localSettings.setSelectedServerId(serverLocation)
+                }
+                success
+            } catch (e: Exception) {
+                if (BuildConfig.DEBUG) {
+                    Log.e(TAG, "Failed to start VPN", e)
+                }
+                false
             }
-
-            val remoteConfig = response.config
-
-            // 3. Build Interface
-            val interfaceBuilder = Interface.Builder()
-                .parsePrivateKey(privateKey)
-                .addAddress(InetNetwork.parse(remoteConfig.clientIp))
-
-            // Add DNS servers
-            remoteConfig.dns.split(",").map { it.trim() }.forEach { dns ->
-                interfaceBuilder.addDnsServer(InetAddress.getByName(dns))
-            }
-
-            // 4. Build Peer
-            val peerBuilder = Peer.Builder()
-                .parsePublicKey(remoteConfig.serverPubkey)
-                .setEndpoint(InetEndpoint.parse(remoteConfig.serverEndpoint))
-                .addAllowedIp(InetNetwork.parse(remoteConfig.allowedIps))
-
-            if (remoteConfig.keepalive > 0) {
-                peerBuilder.setPersistentKeepalive(remoteConfig.keepalive)
-            }
-
-            // 5. Build Config
-            val config = Config.Builder()
-                .setInterface(interfaceBuilder.build())
-                .addPeer(peerBuilder.build())
-                .build()
-
-            // 6. Set Tunnel State to UP
-            goBackend.setState(vpnTunnel, Tunnel.State.UP, config)
-            localSettings.setSelectedServerId(serverLocation)
-            true
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
         }
-    }
 
     /**
      * Stop the VPN tunnel
      */
     suspend fun stopVpn() = withContext(Dispatchers.IO) {
-        try {
-            goBackend.setState(vpnTunnel, Tunnel.State.DOWN, null)
-        } catch (e: Exception) {
-            e.printStackTrace()
+        if (activeProtocol == "openvpn") {
+            openVpnClient.stop()
+        } else {
+            wireGuardClient.stop()
         }
     }
 }

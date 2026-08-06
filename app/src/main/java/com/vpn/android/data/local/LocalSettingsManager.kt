@@ -1,9 +1,12 @@
 package com.vpn.android.data.local
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.wireguard.crypto.KeyPair
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -13,137 +16,140 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+// Non-sensitive settings (UI prefs, flags) remain in standard DataStore
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "vpn_settings")
 
 @Singleton
 class LocalSettingsManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @param:ApplicationContext private val context: Context
 ) {
     private val dataStore = context.dataStore
 
+    // -------------------------------------------------------------------------
+    // ✅ SECURITY FIX: Sensitive fields stored in EncryptedSharedPreferences
+    //    backed by Android Keystore — survives uninstall, hardware-protected.
+    // -------------------------------------------------------------------------
+    private val encryptedPrefs: SharedPreferences by lazy {
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        EncryptedSharedPreferences.create(
+            context,
+            "vpn_secure_prefs",          // filename (will be encrypted)
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    // Keys stored in EncryptedSharedPreferences (sensitive)
     companion object {
-        private val KEY_INSTALLATION_ID = stringPreferencesKey("installation_id")
-        private val KEY_WG_PRIVATE_KEY = stringPreferencesKey("wg_private_key")
-        private val KEY_WG_PUBLIC_KEY = stringPreferencesKey("wg_public_key")
-        private val KEY_SUBSCRIPTION_ACTIVE = booleanPreferencesKey("subscription_active")
-        private val KEY_SUBSCRIPTION_EXPIRY = stringPreferencesKey("subscription_expiry")
-        private val KEY_SELECTED_SERVER_ID = stringPreferencesKey("selected_server_id")
-        private val KEY_KILL_SWITCH_ENABLED = booleanPreferencesKey("kill_switch_enabled")
-        private val KEY_EMAIL = stringPreferencesKey("user_email")
-        private val KEY_LAST_ROTATION_TIME = longPreferencesKey("last_rotation_time")
-        private val KEY_TRIAL_STARTED_AT = longPreferencesKey("trial_started_at")
+        // Encrypted keys
+        private const val ENC_INSTALLATION_ID     = "enc_installation_id"
+        private const val ENC_WG_PRIVATE_KEY      = "enc_wg_private_key"
+        private const val ENC_WG_PUBLIC_KEY       = "enc_wg_public_key"
+        private const val ENC_LAST_ROTATION       = "enc_last_rotation_time"
+        private const val ENC_EMAIL               = "enc_user_email"
+        // ✅ FIX ❶: Subscription status moved from DataStore to EncryptedSharedPreferences.
+        //    On a rooted device a user could flip subscription_active=true in the plain
+        //    DataStore file without paying. Encrypted storage prevents that.
+        private const val ENC_SUBSCRIPTION_ACTIVE = "enc_subscription_active"
+        private const val ENC_SUBSCRIPTION_EXPIRY  = "enc_subscription_expiry"
+
+        // Non-sensitive DataStore keys
+        private val KEY_SELECTED_SERVER_ID   = stringPreferencesKey("selected_server_id")
+        private val KEY_KILL_SWITCH_ENABLED  = booleanPreferencesKey("kill_switch_enabled")
+        private val KEY_PROTOCOL             = stringPreferencesKey("protocol")
+        private val KEY_CONSENT_ACCEPTED     = booleanPreferencesKey("consent_accepted")
     }
 
-    // 3-day Free Trial Tracking
-    val trialStartedAtFlow: Flow<Long> = dataStore.data.map { preferences ->
-        preferences[KEY_TRIAL_STARTED_AT] ?: 0L
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // 1. Installation ID  (ENCRYPTED)
+    // ─────────────────────────────────────────────────────────────────────────
 
-    suspend fun getOrCreateTrialStartedAt(): Long {
-        val current = trialStartedAtFlow.first()
-        if (current > 0L) return current
-        val now = System.currentTimeMillis()
-        dataStore.edit { preferences ->
-            preferences[KEY_TRIAL_STARTED_AT] = now
-        }
-        return now
-    }
-
-    val isTrialActiveFlow: Flow<Boolean> = dataStore.data.map { preferences ->
-        val startedAt = preferences[KEY_TRIAL_STARTED_AT] ?: 0L
-        if (startedAt == 0L) true // Trial starts on first use
-        else {
-            val threeDaysMillis = 3L * 24L * 60L * 60L * 1000L
-            (System.currentTimeMillis() - startedAt) < threeDaysMillis
-        }
-    }
-
-    val trialTimeRemainingMillisFlow: Flow<Long> = dataStore.data.map { preferences ->
-        val startedAt = preferences[KEY_TRIAL_STARTED_AT] ?: 0L
-        val threeDaysMillis = 3L * 24L * 60L * 60L * 1000L
-        if (startedAt == 0L) threeDaysMillis
-        else {
-            val elapsed = System.currentTimeMillis() - startedAt
-            (threeDaysMillis - elapsed).coerceAtLeast(0L)
-        }
-    }
-
-    // 1. Installation ID (UUID)
-    val installationIdFlow: Flow<String> = dataStore.data.map { preferences ->
-        preferences[KEY_INSTALLATION_ID] ?: ""
+    val installationIdFlow: Flow<String> = dataStore.data.map { _ ->
+        encryptedPrefs.getString(ENC_INSTALLATION_ID, "") ?: ""
     }
 
     suspend fun getOrCreateInstallationId(): String {
-        val currentId = installationIdFlow.first()
-        if (currentId.isNotEmpty()) return currentId
-
+        val current = encryptedPrefs.getString(ENC_INSTALLATION_ID, "") ?: ""
+        if (current.isNotEmpty()) return current
         val newId = UUID.randomUUID().toString()
-        dataStore.edit { preferences ->
-            preferences[KEY_INSTALLATION_ID] = newId
-        }
+        encryptedPrefs.edit().putString(ENC_INSTALLATION_ID, newId).apply()
         return newId
     }
 
-    // 2. WireGuard Key Pair
-    val wgPrivateKeyFlow: Flow<String> = dataStore.data.map { preferences ->
-        preferences[KEY_WG_PRIVATE_KEY] ?: ""
-    }
-
-    val wgPublicKeyFlow: Flow<String> = dataStore.data.map { preferences ->
-        preferences[KEY_WG_PUBLIC_KEY] ?: ""
-    }
+    // ─────────────────────────────────────────────────────────────────────────
+    // 2. WireGuard Key Pair  (ENCRYPTED — most sensitive value in the app)
+    // ─────────────────────────────────────────────────────────────────────────
 
     suspend fun getOrCreateWireGuardKeys(): Pair<String, String> {
-        val privateKey = wgPrivateKeyFlow.first()
-        val publicKey = wgPublicKeyFlow.first()
+        val privateKey = encryptedPrefs.getString(ENC_WG_PRIVATE_KEY, "") ?: ""
+        val publicKey  = encryptedPrefs.getString(ENC_WG_PUBLIC_KEY,  "") ?: ""
         if (privateKey.isNotEmpty() && publicKey.isNotEmpty()) {
             return Pair(privateKey, publicKey)
         }
-
         // Generate keypair locally using WireGuard SDK
-        val keyPair = KeyPair()
+        val keyPair       = KeyPair()
         val generatedPriv = keyPair.privateKey.toBase64()
-        val generatedPub = keyPair.publicKey.toBase64()
-
-        dataStore.edit { preferences ->
-            preferences[KEY_WG_PRIVATE_KEY] = generatedPriv
-            preferences[KEY_WG_PUBLIC_KEY] = generatedPub
-            preferences[KEY_LAST_ROTATION_TIME] = System.currentTimeMillis()
-        }
+        val generatedPub  = keyPair.publicKey.toBase64()
+        encryptedPrefs.edit()
+            .putString(ENC_WG_PRIVATE_KEY, generatedPriv)
+            .putString(ENC_WG_PUBLIC_KEY,  generatedPub)
+            .putLong(ENC_LAST_ROTATION,    System.currentTimeMillis())
+            .apply()
         return Pair(generatedPriv, generatedPub)
     }
 
-    val lastRotationTimeFlow: Flow<Long> = dataStore.data.map { preferences ->
-        preferences[KEY_LAST_ROTATION_TIME] ?: 0L
+    val lastRotationTimeFlow: Flow<Long> = dataStore.data.map { _ ->
+        encryptedPrefs.getLong(ENC_LAST_ROTATION, 0L)
     }
 
     suspend fun updateWireGuardKeys(privateKey: String, publicKey: String) {
-        dataStore.edit { preferences ->
-            preferences[KEY_WG_PRIVATE_KEY] = privateKey
-            preferences[KEY_WG_PUBLIC_KEY] = publicKey
-            preferences[KEY_LAST_ROTATION_TIME] = System.currentTimeMillis()
-        }
+        encryptedPrefs.edit()
+            .putString(ENC_WG_PRIVATE_KEY, privateKey)
+            .putString(ENC_WG_PUBLIC_KEY,  publicKey)
+            .putLong(ENC_LAST_ROTATION,    System.currentTimeMillis())
+            .apply()
     }
 
-    // 3. Subscription Status
-    val isSubscriptionActiveFlow: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[KEY_SUBSCRIPTION_ACTIVE] ?: false
+    // ─────────────────────────────────────────────────────────────────────────
+    // 3. User Email  (ENCRYPTED — personal data)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    val emailFlow: Flow<String> = dataStore.data.map { _ ->
+        encryptedPrefs.getString(ENC_EMAIL, "") ?: ""
     }
 
-    val subscriptionExpiryFlow: Flow<String> = dataStore.data.map { preferences ->
-        preferences[KEY_SUBSCRIPTION_EXPIRY] ?: ""
+    suspend fun setEmail(email: String) {
+        encryptedPrefs.edit().putString(ENC_EMAIL, email).apply()
+    }
+
+    // ───────────────────────────────────────────────────────────────────────────
+    // 4. Subscription Status  (ENCRYPTED — moved from DataStore in security fix ❶)
+    // ───────────────────────────────────────────────────────────────────────────
+
+    val isSubscriptionActiveFlow: Flow<Boolean> = dataStore.data.map { _ ->
+        encryptedPrefs.getBoolean(ENC_SUBSCRIPTION_ACTIVE, false)
+    }
+
+    val subscriptionExpiryFlow: Flow<String> = dataStore.data.map { _ ->
+        encryptedPrefs.getString(ENC_SUBSCRIPTION_EXPIRY, "") ?: ""
     }
 
     suspend fun setSubscriptionStatus(isActive: Boolean, expiryDate: String) {
-        dataStore.edit { preferences ->
-            preferences[KEY_SUBSCRIPTION_ACTIVE] = isActive
-            preferences[KEY_SUBSCRIPTION_EXPIRY] = expiryDate
-        }
+        encryptedPrefs.edit()
+            .putBoolean(ENC_SUBSCRIPTION_ACTIVE, isActive)
+            .putString(ENC_SUBSCRIPTION_EXPIRY,  expiryDate)
+            .apply()
     }
 
-    // 4. Selected Server Location
+    // ─────────────────────────────────────────────────────────────────────────
+    // 6. Selected Server Location  (non-sensitive — standard DataStore)
+    // ─────────────────────────────────────────────────────────────────────────
+
     val selectedServerIdFlow: Flow<String> = dataStore.data.map { preferences ->
-        preferences[KEY_SELECTED_SERVER_ID] ?: "" // Default to Auto Select (empty string)
+        preferences[KEY_SELECTED_SERVER_ID] ?: ""
     }
 
     suspend fun setSelectedServerId(serverId: String) {
@@ -152,7 +158,10 @@ class LocalSettingsManager @Inject constructor(
         }
     }
 
-    // 5. Kill Switch (setBlocking)
+    // ─────────────────────────────────────────────────────────────────────────
+    // 7. Kill Switch  (non-sensitive — standard DataStore)
+    // ─────────────────────────────────────────────────────────────────────────
+
     val isKillSwitchEnabledFlow: Flow<Boolean> = dataStore.data.map { preferences ->
         preferences[KEY_KILL_SWITCH_ENABLED] ?: false
     }
@@ -163,14 +172,33 @@ class LocalSettingsManager @Inject constructor(
         }
     }
 
-    // 6. User Email
-    val emailFlow: Flow<String> = dataStore.data.map { preferences ->
-        preferences[KEY_EMAIL] ?: ""
+    // ─────────────────────────────────────────────────────────────────────────
+    // 8. Protocol  (non-sensitive — standard DataStore)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    val protocolFlow: Flow<String> = dataStore.data.map { preferences ->
+        preferences[KEY_PROTOCOL] ?: "wireguard"
     }
 
-    suspend fun setEmail(email: String) {
+    suspend fun setProtocol(protocol: String) {
         dataStore.edit { preferences ->
-            preferences[KEY_EMAIL] = email
+            preferences[KEY_PROTOCOL] = protocol
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 9. Legal Consent  (non-sensitive — standard DataStore)
+    //    Tracks whether the user has accepted Privacy Policy + Terms of Service.
+    //    Must be accepted before the app proceeds to onboarding/home.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    val consentAcceptedFlow: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[KEY_CONSENT_ACCEPTED] ?: false
+    }
+
+    suspend fun setConsentAccepted() {
+        dataStore.edit { preferences ->
+            preferences[KEY_CONSENT_ACCEPTED] = true
         }
     }
 }

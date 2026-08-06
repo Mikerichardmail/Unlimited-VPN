@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Monochrome shield+lock notification icon.
+    Android notification small icons MUST be white-on-transparent only.
+    The system tints them with the notification accent colour automatically.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Shield body -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,1 L3,5 L3,11 C3,16.55 6.84,21.74 12,23 C17.16,21.74 21,16.55 21,11 L21,5 L12,1 Z" />
+
+    <!-- Lock body (cutout style — drawn over shield in background colour feels wrong on notif;
+         instead we use a slightly smaller filled shield and draw the lock as outline only) -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,2.69 L4,6.25 L4,11 C4,16.01 7.44,20.72 12,21.93 C16.56,20.72 20,16.01 20,11 L20,6.25 L12,2.69 Z" />
+
+    <!-- Lock shackle -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="0.3"
+        android:pathData="M14,10 L14,9 C14,7.9 13.1,7 12,7 C10.9,7 10,7.9 10,9 L10,10 L9,10 L9,14 L15,14 L15,10 Z
+                          M12,8 C12.55,8 13,8.45 13,9 L13,10 L11,10 L11,9 C11,8.45 11.45,8 12,8 Z
+                          M12,13 C11.45,13 11,12.55 11,12 C11,11.45 11.45,11 12,11 C12.55,11 13,11.45 13,12 C13,12.55 12.55,13 12,13 Z" />
+</vector>

@@ -4,14 +4,14 @@ import com.google.gson.annotations.SerializedName
 
 // 1. Server information
 data class Server(
-    val id: String,
-    val country: String,
-    val city: String,
-    val endpoint: String,
-    val pubkey: String,
-    @SerializedName("ping_ip") val pingIp: String,
-    @SerializedName("latency_ms") val latencyMs: Int,
-    @SerializedName("load_percent") val loadPercent: Int,
+    val id: String = "",
+    val country: String = "",
+    val city: String = "",
+    val endpoint: String = "",
+    val pubkey: String = "",
+    @SerializedName("ping_ip") val pingIp: String = "",
+    @SerializedName("latency_ms") val latencyMs: Int = 0,
+    @SerializedName("load_percent") val loadPercent: Int = 0,
     val icon: String? = null
 )
 
@@ -48,16 +48,19 @@ data class VerifyResponse(
 data class RegisterDeviceRequest(
     val installationId: String,
     val wireguardPubkey: String,
-    val serverLocation: String
+    val serverLocation: String,
+    val protocol: String = "wireguard"
 )
 
 data class VpnConfig(
-    @SerializedName("client_ip") val clientIp: String,
-    val dns: String,
-    @SerializedName("server_pubkey") val serverPubkey: String,
-    @SerializedName("server_endpoint") val serverEndpoint: String,
-    @SerializedName("allowed_ips") val allowedIps: String,
-    val keepalive: Int
+    @SerializedName("client_private_key") val clientPrivateKey: String? = null, // VPNResellers-issued key (preferred)
+    @SerializedName("client_ip") val clientIp: String?,
+    val dns: String?,
+    @SerializedName("server_pubkey") val serverPubkey: String?,
+    @SerializedName("server_endpoint") val serverEndpoint: String?,
+    @SerializedName("allowed_ips") val allowedIps: String?,
+    val keepalive: Int?,
+    @SerializedName("ovpn_config") val ovpnConfig: String? = null
 )
 
 data class RegisterDeviceResponse(
@@ -79,7 +82,8 @@ data class StatusResponse(
 // 5. Deregister Device
 data class DeregisterDeviceRequest(
     val installationId: String,
-    val wireguardPubkey: String
+    val wireguardPubkey: String,
+    val protocol: String = "wireguard"
 )
 
 data class DeregisterDeviceResponse(
@@ -95,6 +99,16 @@ data class RotateKeyRequest(
 )
 
 data class RotateKeyResponse(
+    val success: Boolean,
+    val message: String
+)
+
+// 7. Delete Account
+data class DeleteAccountRequest(
+    val installationId: String
+)
+
+data class DeleteAccountResponse(
     val success: Boolean,
     val message: String
 )

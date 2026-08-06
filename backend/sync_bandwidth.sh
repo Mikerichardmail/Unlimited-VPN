@@ -123,3 +123,114 @@ while read -r directive; do
 done <<< "$DIRECTIVES"
 
 echo "Bandwidth sync and throttling update complete."
+
+# ═══════════════════════════════════════════════════════════════════════════
+# CERT-In 2022 Compliance — Connection Event Logging
+# Detects when WireGuard peers connect and disconnect, then POSTs session
+# events to /api/connection-log for storage in Supabase (certin_connection_logs).
+#
+# State file: /tmp/certin_peer_state
+#   Format per line: PUBKEY|LAST_HANDSHAKE|STATUS
+#   STATUS: "connected" or "disconnected"
+#
+# CERT-In requires all ICT system logs retained for 180 days.
+# The Cloudflare Worker handles the actual database write and retention.
+# ═══════════════════════════════════════════════════════════════════════════
+
+CONNECTION_LOG_URL="https://api.vpnapp.in/api/connection-log"
+WORKER_AUTH_SECRET="VPN_WORKER_AUTH_SECRET"  # must match WORKER_AUTH_SECRET in Cloudflare
+STATE_FILE="/tmp/certin_peer_state"
+STALE_THRESHOLD=180   # seconds — if last_handshake older than 3 min, peer is disconnected
+
+# Read the full WireGuard dump (includes endpoint/source IP)
+FULL_DUMP=$(wg show wg0 dump)
+
+touch "$STATE_FILE"
+
+while IFS= read -r line; do
+  [ -z "$line" ] && continue
+
+  PUBKEY=$(echo "$line"        | awk '{print $1}')
+  ENDPOINT=$(echo "$line"      | awk '{print $3}')   # source IP:port (user's real IP)
+  ALLOWED_IP=$(echo "$line"    | awk '{print $4}' | cut -d'/' -f1)  # assigned VPN IP
+  LAST_HANDSHAKE=$(echo "$line"| awk '{print $5}')   # epoch seconds, 0 if never
+
+  # Skip interface row (no numeric handshake)
+  [[ ! "$LAST_HANDSHAKE" =~ ^[0-9]+$ ]] && continue
+  [ "$PUBKEY" = "(none)" ] && continue
+
+  SOURCE_IP=$(echo "$ENDPOINT" | cut -d':' -f1)
+  NOW=$(date +%s)
+  AGE=$(( NOW - LAST_HANDSHAKE ))
+
+  # Read previous state for this peer
+  PREV_STATUS=$(grep "^${PUBKEY}|" "$STATE_FILE" | cut -d'|' -f3)
+  PREV_HANDSHAKE=$(grep "^${PUBKEY}|" "$STATE_FILE" | cut -d'|' -f2)
+
+  # ── Determine current connectivity ────────────────────────────────────────
+  if [ "$LAST_HANDSHAKE" -gt 0 ] && [ "$AGE" -lt "$STALE_THRESHOLD" ]; then
+    CURRENT_STATUS="connected"
+  else
+    CURRENT_STATUS="disconnected"
+  fi
+
+  # ── Fire events on state transitions ──────────────────────────────────────
+  if [ "$CURRENT_STATUS" = "connected" ] && [ "$PREV_STATUS" != "connected" ]; then
+    # CONNECT event: peer just became active
+    PAYLOAD=$(cat <<EOF
+{
+  "installationId": "$PUBKEY",
+  "devicePubkey": "$PUBKEY",
+  "event": "connect",
+  "sourceIp": "$SOURCE_IP",
+  "assignedVpnIp": "$ALLOWED_IP",
+  "serverLocation": "$SERVER_ID",
+  "bytesSent": 0,
+  "bytesReceived": 0
+}
+EOF
+)
+    curl -sf -X POST \
+      -H "Content-Type: application/json" \
+      -H "X-Worker-Auth: $WORKER_AUTH_SECRET" \
+      -d "$PAYLOAD" \
+      "$CONNECTION_LOG_URL" \
+      > /dev/null 2>&1 || true
+    echo "[CERT-In] Connect logged for $PUBKEY from $SOURCE_IP"
+
+  elif [ "$CURRENT_STATUS" = "disconnected" ] && [ "$PREV_STATUS" = "connected" ]; then
+    # DISCONNECT event: peer went stale
+    # Include the final byte counters from the current dump
+    RX=$(echo "$line" | awk '{print $6}')
+    TX=$(echo "$line" | awk '{print $7}')
+
+    PAYLOAD=$(cat <<EOF
+{
+  "installationId": "$PUBKEY",
+  "devicePubkey": "$PUBKEY",
+  "event": "disconnect",
+  "sourceIp": "$SOURCE_IP",
+  "assignedVpnIp": "$ALLOWED_IP",
+  "serverLocation": "$SERVER_ID",
+  "bytesSent": ${TX:-0},
+  "bytesReceived": ${RX:-0}
+}
+EOF
+)
+    curl -sf -X POST \
+      -H "Content-Type: application/json" \
+      -H "X-Worker-Auth: $WORKER_AUTH_SECRET" \
+      -d "$PAYLOAD" \
+      "$CONNECTION_LOG_URL" \
+      > /dev/null 2>&1 || true
+    echo "[CERT-In] Disconnect logged for $PUBKEY"
+  fi
+
+  # ── Update state file ──────────────────────────────────────────────────────
+  # Remove old entry for this peer, then append updated entry
+  sed -i "/^${PUBKEY}|/d" "$STATE_FILE"
+  echo "${PUBKEY}|${LAST_HANDSHAKE}|${CURRENT_STATUS}" >> "$STATE_FILE"
+
+done <<< "$FULL_DUMP"
+
+echo "CERT-In connection logging complete."

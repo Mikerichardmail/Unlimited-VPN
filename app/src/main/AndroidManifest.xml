@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.tools.com/apk/res/tools">
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -12,9 +12,9 @@
     <application
         android:name="com.vpn.android.VpnApplication"
         android:allowBackup="false"
-        android:icon="@android:drawable/ic_lock_power_off"
+        android:icon="@mipmap/ic_launcher"
         android:label="Unlimited VPN"
-        android:roundIcon="@android:drawable/ic_lock_power_off"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.NoActionBar"
         android:networkSecurityConfig="@xml/network_security_config"
@@ -45,6 +45,19 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="vpn" />
         </service>
+
+        <!-- OpenVPN Service (ics-openvpn) Placeholder -->
+        <!-- TODO: Enable these when ics-openvpn is integrated
+        <service
+            android:name="de.blinkt.openvpn.core.OpenVPNService"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="vpn" />
+        </service>
+        -->
 
         <!-- Receiver to start VPN on boot if enabled -->
         <receiver

@@ -1,12 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
+    <!--
+        Base config: block ALL cleartext (HTTP) traffic app-wide.
+        Only HTTPS connections are permitted.
+    -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+
+    <!--
+        Domain-specific config: explicit HTTPS enforcement for all app-used domains.
+        flagcdn.com is used for country flag images on the server selection screen.
+        bestvpnproxy.in is the support/terms website.
+        workers.dev is the Cloudflare Worker API host.
+    -->
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">vpnapp.in</domain>
         <domain includeSubdomains="true">workers.dev</domain>
+        <domain includeSubdomains="true">bestvpnproxy.in</domain>
+        <domain includeSubdomains="true">flagcdn.com</domain>
+        <domain includeSubdomains="true">ipify.org</domain>
+        <domain includeSubdomains="true">supabase.co</domain>
     </domain-config>
 </network-security-config>

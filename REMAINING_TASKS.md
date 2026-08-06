@@ -7,9 +7,9 @@ This document details the exact status of [VPN_App_Project_Plan-1.md](file:///f:
 ## 📊 Summary Status
 
 - **Android App Codebase (`app`)**: ✅ **100% COMPLETE & VERIFIED**
-  - Jetpack Compose UI (Onboarding, 3-Day Trial Paywall, Home Dashboard, Server Picker, Settings)
+  - Jetpack Compose UI (Onboarding, Direct Purchase Paywall, Home Dashboard, Server Picker, Settings)
   - Google Play Billing Library 7.1.1 (`vpn_monthly`, `vpn_6month`, `vpn_annual`)
-  - Persistent 3-Day Free Trial tracking & countdown UI
+  - Direct Paid Subscriptions (No Free Trial — instant payment on signup)
   - WireGuard SDK integration & Kill-Switch state logic
   - HTTPS Network Security Config & R8/ProGuard obfuscation rules
 
@@ -37,6 +37,7 @@ Run the following commands in your terminal (`f:\vpn android\backend`) to link y
 - [ ] Set Supabase Service Role Key: `npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY`
 - [ ] Set Worker Auth Secret: `npx wrangler secret put WORKER_AUTH_SECRET`
 - [ ] *(Optional)* Set live VPNResellers Token: `npx wrangler secret put VPNRESELLERS_API_TOKEN` (when switching from Mock Mode to Live Servers)
+- [x] Set Webhook Secret: ✅ Already deployed to Cloudflare (`WEBHOOK_SECRET` set on 2026-08-02)
 
 ---
 
@@ -46,12 +47,13 @@ Run the following commands in your terminal (`f:\vpn android\backend`) to link y
 - [ ] Set Service Account credentials on Cloudflare Worker:
   - `npx wrangler secret put GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL`
   - `npx wrangler secret put GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY`
-- [ ] Create 3 Subscriptions in Google Play Console:
-  - `vpn_monthly` — ₹600/month (3-Day Free Trial)
-  - `vpn_6month` — ₹3,000/6 months (3-Day Free Trial)
-  - `vpn_annual` — ₹5,000/year (3-Day Free Trial)
+- [ ] Create 3 Subscriptions in Google Play Console (Free Trial = None):
+  - `vpn_monthly` — ₹600/month (No Trial)
+  - `vpn_6month` — ₹3,000/6 months (No Trial)
+  - `vpn_annual` — ₹5,000/year (No Trial)
 - [ ] Configure Real-Time Developer Notifications (RTDN) Webhook in Play Console:
-  - Set URL to: `https://vpn-api-worker.iteack19.workers.dev/webhook/google-play`
+  - Set URL to: `https://vpn-api-worker.iteack19.workers.dev/webhook/google-play?secret=<your-WEBHOOK_SECRET>`
+  - ⚠️ Replace `<your-WEBHOOK_SECRET>` with the value you set via `npx wrangler secret put WEBHOOK_SECRET`
 
 ---
 

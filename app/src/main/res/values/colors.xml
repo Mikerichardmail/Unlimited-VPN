@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Adaptive icon background — pure black to match the icon artwork's dark edges -->
+    <color name="ic_launcher_background">#FF000000</color>
+</resources>

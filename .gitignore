@@ -1,7 +1,10 @@
 # Android / Gradle
 .gradle/
+.kotlin/
 build/
 app/build/
+*.aab
+*.apk
 backend/node_modules/
 backend/.wrangler/
 
@@ -11,7 +14,10 @@ backend/.wrangler/
 .DS_Store
 Thumbs.db
 local.properties
+compile_errors.log
 
-# Secrets
+# Secrets — never commit these
 *.keystore
 *.jks
+backend/.dev.vars
+

@@ -6,7 +6,10 @@ import retrofit2.http.*
 interface VpnApiService {
 
     @GET("api/servers")
-    suspend fun getServers(): ServersResponse
+    suspend fun getServers(
+        @Query("installationId") installationId: String,
+        @Header("X-App-Signature") signature: String
+    ): ServersResponse
 
     @POST("api/verify")
     suspend fun verifySubscription(
@@ -37,4 +40,10 @@ interface VpnApiService {
         @Body request: RotateKeyRequest,
         @Header("X-App-Signature") signature: String
     ): RotateKeyResponse
+
+    @HTTP(method = "DELETE", path = "api/delete-account", hasBody = true)
+    suspend fun deleteAccount(
+        @Body request: DeleteAccountRequest,
+        @Header("X-App-Signature") signature: String
+    ): DeleteAccountResponse
 }
