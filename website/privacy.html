@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Privacy Policy - Unlimited VPN (Google Play Compliant)</title>
-  <meta name="description" content="Unlimited VPN Privacy Policy - Fully compliant with Google Play Store Developer Policies, featuring a strict 100% No-Logs Policy and explicit Data Safety disclosures.">
+  <meta name="description" content="Unlimited VPN Privacy Policy - Fully compliant with Google Play Store Developer Policies, featuring explicit Data Safety disclosures.">
   <link rel="canonical" href="https://bestvpnproxy.in/privacy.html">
   <link rel="stylesheet" href="css/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
@@ -54,15 +54,14 @@
           At <strong>Unlimited VPN</strong>, we believe digital privacy is a fundamental human right. Our Android application is designed around data minimization: we collect only the bare minimum technical data required to validate your active subscription and establish secure WireGuard® encrypted tunnels.
         </p>
 
-        <h2 id="no-logs">2. Strict 100% No-Logs Guarantee</h2>
+        <h2 id="privacy-policy">2. Privacy Policy & Data Logging</h2>
         <p>
-          Unlimited VPN operates under a strict, non-negotiable <strong>No-Logs Policy</strong>. We do NOT record, log, monitor, sell, or store any of the following data under any circumstances:
+          Unlimited VPN respects your privacy while complying with mandatory regional regulations (such as CERT-In 2022 guidelines). Here is exactly what we log and what we do not:
         </p>
         <ul>
-          <li><strong>Zero Traffic & Browsing Logs:</strong> We do not log destination IP addresses, domain names, websites visited, DNS queries, or app data transferred over the VPN tunnel.</li>
-          <li><strong>Zero Real IP Address Logs:</strong> Your real public IP address assigned by your Wi-Fi or cellular provider is never logged or linked to your session.</li>
-          <li><strong>Zero Connection Timestamps:</strong> We do not record connection start times, disconnection times, or session duration logs.</li>
-          <li><strong>Zero Individual Bandwidth Records:</strong> We do not keep historical logs of individual user data consumption.</li>
+          <li><strong>No Traffic & Browsing Logs:</strong> We do not log destination IP addresses, domain names, websites visited, DNS queries, or app data transferred over the VPN tunnel.</li>
+          <li><strong>Connection Metadata Collected:</strong> We are required to log your real public IP address, assigned VPN IP, connection timestamps, server location, and bandwidth usage. This session data is securely retained for 180 days.</li>
+          <li><strong>Subscriber Information:</strong> We record the IP address used during registration and associate it with your subscription. Subscriber records are retained for 5 years after cancellation.</li>
         </ul>
 
         <h2>3. Google Play Data Safety Disclosures & Data Collection</h2>
@@ -103,6 +102,12 @@
               <td style="padding:12px;">Saved locally on your device via encrypted Android DataStore preferences.</td>
               <td style="padding:12px; color:var(--accent-green);">Stored 100% locally on device</td>
             </tr>
+            <tr style="border-top:1px solid var(--border-glass);">
+              <td style="padding:12px; font-weight:600;">App Performance</td>
+              <td style="padding:12px;">Crash & Error Logs</td>
+              <td style="padding:12px;">Basic device info (OS version, model, app version) and error traces collected only when the VPN fails, to help us fix bugs.</td>
+              <td style="padding:12px; color:var(--accent-green);">Stored securely; never shared with 3rd party trackers</td>
+            </tr>
           </tbody>
         </table>
 
@@ -123,20 +128,22 @@
           Unlimited VPN uses state-of-the-art <strong>WireGuard®</strong> protocol cryptography featuring <strong>ChaCha20-Poly1305</strong> symmetric encryption, <strong>Curve25519</strong> key exchange, and <strong>BLAKE2s</strong> hashing. Communication with backend control servers is protected using <strong>TLS 1.3</strong> and HMAC-SHA256 request authentication.
         </p>
 
-        <h2>6. Third-Party Services</h2>
+        <h2>6. Third-Party Services & Zero Tracking</h2>
         <p>
-          We rely on trusted infrastructure providers operating under strict security standards:
+          We rely on trusted infrastructure providers operating under strict security standards. <strong>We strictly do NOT embed any third-party advertising, analytics, or behavioral tracking SDKs (such as Firebase Analytics, Google Analytics, or AppsFlyer) into our Android app.</strong>
         </p>
         <ul>
           <li><strong>Google Play Billing (Google LLC):</strong> Handles all subscription transactions, 3-day free trial tracking, and billing processing. No credit card details ever reach Unlimited VPN servers.</li>
-          <li><strong>Cloudflare Workers & Supabase:</strong> Serverless API layer and database infrastructure used strictly for anonymous device peer registration and subscription entitlement validation.</li>
+          <li><strong>Cloudflare Workers & Supabase:</strong> Serverless API layer and database infrastructure used strictly for anonymous device peer registration, crash reporting, and subscription entitlement validation.</li>
+          <li><strong>VPNResellers:</strong> Our trusted upstream VPN infrastructure provider used dynamically via the backend to fetch available VPN server locations and provision encrypted WireGuard accounts.</li>
         </ul>
 
         <h2>7. Data Retention & User Data Deletion Rights</h2>
         <p>
-          In accordance with Google Play's User Data Deletion policies, you have full control over your data:
+          In accordance with Google Play's User Data Deletion policies and our regulatory obligations, data retention is strictly managed by automated database policies:
         </p>
         <ul>
+          <li><strong>Automated Data Expiry:</strong> Connection logs (timestamps, IPs, bandwidth) are hard-coded to automatically delete from our database <strong>180 days</strong> after the session ends. Subscriber records are automatically deleted <strong>5 years</strong> after subscription cancellation to comply with CERT-In 2022 directions.</li>
           <li><strong>Local Data Wiping:</strong> You can wipe all local settings, WireGuard keys, and installation identifiers at any time by navigating to <i>Android Settings → Apps → Unlimited VPN → Clear Storage / Data</i> or uninstalling the app.</li>
           <li><strong>Server Data Deletion Request:</strong> You may request complete erasure of your anonymous installation ID record and subscription entitlement tokens from our backend database by emailing our team at <strong style="color:var(--primary);">support@bestvpnproxy.in</strong>. Requests are processed within 48 hours.</li>
         </ul>
