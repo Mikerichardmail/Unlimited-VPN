@@ -25,7 +25,7 @@ If you prefer not to use GitHub Actions:
 
 - **`index.html`**: Main Landing Page (Hero banner, phone mockup, live ping simulator, features, pricing, FAQ).
 - **`features.html`**: Technical comparison between WireGuard® and legacy OpenVPN, ChaCha20 encryption specs.
-- **`pricing.html`**: Subscription pricing plans (Monthly ₹600, 6-Month ₹3,000, Annual ₹5,000) highlighting the **3-Day Free Trial**.
+- **`pricing.html`**: Subscription pricing plans (Monthly ₹600, 6-Month ₹3,000, Annual ₹5,000) highlighting the **Premium Subscription**.
 - **`privacy.html`**: Google Play Store compliant Privacy Policy with an explicit Data Safety disclosure.
 - **`terms.html`**: Terms of Service and acceptable use rules.
 - **`support.html`**: Android installation guide and troubleshooting center.

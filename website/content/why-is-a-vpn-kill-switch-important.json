@@ -1,5 +1,5 @@
 {
-  "summary": "A VPN kill switch is a critical security safeguard that automatically blocks your device from accessing the internet if your VPN connection unexpectedly drops, ensuring your real IP address and sensitive data are never exposed. Without this essential feature, a split-second disruption could leave your online activities vulnerable to ISPs and cybercriminals, especially on unstable mobile networks. With Unlimited VPN for Android, you benefit from a built-in kill switch, ultra-fast WireGuard technology, a strict no-logs policy, and a 3-Day free trial to experience uninterrupted privacy.",
+  "summary": "A VPN kill switch is a critical security safeguard that automatically blocks your device from accessing the internet if your VPN connection unexpectedly drops, ensuring your real IP address and sensitive data are never exposed. Without this essential feature, a split-second disruption could leave your online activities vulnerable to ISPs and cybercriminals, especially on unstable mobile networks. With Unlimited VPN for Android, you benefit from a built-in kill switch, ultra-fast WireGuard technology, a strict no-logs policy, and a premium subscription to experience uninterrupted privacy.",
   "sections": [
     {
       "heading": "What exactly is a VPN kill switch and how does it work?",
@@ -23,7 +23,7 @@
     },
     {
       "heading": "How does Unlimited VPN protect your privacy on Android?",
-      "content": "<p>Unlimited VPN is engineered specifically to meet the demanding privacy needs of modern Android users. We understand that your mobile device contains your entire digital life, from banking apps to personal photos, which is why our application features a robust, system-level kill switch that never sleeps. You can confidently browse, stream, and communicate on any network, knowing that a sudden drop in connectivity will not compromise your identity. Coupled with the lightning-fast performance of the WireGuard protocol, Unlimited VPN delivers uncompromising security without slowing down your connection speeds.</p><p>Beyond our technological safeguards, Unlimited VPN is strictly committed to your absolute privacy. We operate under a verified no-logs policy, meaning we never track, store, or share your browsing history, connection timestamps, or IP addresses. What you do online is entirely your business. We believe everyone deserves to experience true digital freedom and security. That is why we offer a 3-Day free trial for all new Android users. Download Unlimited VPN today, activate your free trial, and experience the unparalleled peace of mind that comes with industry-leading encryption and an impenetrable kill switch.</p>"
+      "content": "<p>Unlimited VPN is engineered specifically to meet the demanding privacy needs of modern Android users. We understand that your mobile device contains your entire digital life, from banking apps to personal photos, which is why our application features a robust, system-level kill switch that never sleeps. You can confidently browse, stream, and communicate on any network, knowing that a sudden drop in connectivity will not compromise your identity. Coupled with the lightning-fast performance of the WireGuard protocol, Unlimited VPN delivers uncompromising security without slowing down your connection speeds.</p><p>Beyond our technological safeguards, Unlimited VPN is strictly committed to your absolute privacy. We operate under a verified no-logs policy, meaning we never track, store, or share your browsing history, connection timestamps, or IP addresses. What you do online is entirely your business. We believe everyone deserves to experience true digital freedom and security. That is why we offer a premium subscription for all new Android users. Download Unlimited VPN today, activate your premium subscription, and experience the unparalleled peace of mind that comes with industry-leading encryption and an impenetrable kill switch.</p>"
     }
   ],
   "faqs": [
@@ -41,7 +41,7 @@
     },
     {
       "q": "How can I try Unlimited VPN's WireGuard protocol and kill switch?",
-      "a": "You can download Unlimited VPN directly to your Android device and take advantage of our 3-Day free trial. This gives you full access to all premium features, including the kill switch and WireGuard speeds, completely risk-free."
+      "a": "You can download Unlimited VPN directly to your Android device and take advantage of our premium subscription. This gives you full access to all premium features, including the kill switch and WireGuard speeds, completely risk-free."
     }
   ]
 }

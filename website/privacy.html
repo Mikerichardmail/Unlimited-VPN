@@ -45,7 +45,7 @@
       </ul>
 
       <div class="nav-actions">
-        <a href="pricing" class="btn btn-primary btn-sm">Start 3-Day Trial</a>
+        <a href="pricing" class="btn btn-primary btn-sm">Start Premium Subscription</a>
         <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle Navigation">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
         </button>
@@ -95,7 +95,7 @@
             <tr style="border-bottom:1px solid var(--border-glass);">
               <td style="padding:12px; font-weight:600;">Device Identifiers</td>
               <td style="padding:12px;">Anonymous Installation ID (UUID)</td>
-              <td style="padding:12px;">Generated locally on first launch to link your 3-day trial & subscription state to your device.</td>
+              <td style="padding:12px;">Generated locally on first launch to link your premium subscription & subscription state to your device.</td>
               <td style="padding:12px; color:var(--accent-green);">Never Shared with 3rd parties</td>
             </tr>
             <tr style="border-bottom:1px solid var(--border-glass);">
@@ -107,7 +107,7 @@
             <tr style="border-bottom:1px solid var(--border-glass);">
               <td style="padding:12px; font-weight:600;">Financial & Purchase Data</td>
               <td style="padding:12px;">Google Play Purchase Token</td>
-              <td style="padding:12px;">Validated via Google Play Billing API to confirm active subscription or 3-day trial entitlement.</td>
+              <td style="padding:12px;">Validated via Google Play Billing API to confirm active subscription or premium subscription entitlement.</td>
               <td style="padding:12px; color:var(--accent-green);">Processed securely via Google Play</td>
             </tr>
             <tr>
@@ -147,7 +147,7 @@
           We rely on trusted infrastructure providers operating under strict security standards. <strong>We strictly do NOT embed any third-party advertising, analytics, or behavioral tracking SDKs (such as Firebase Analytics, Google Analytics, or AppsFlyer) into our Android app.</strong>
         </p>
         <ul>
-          <li><strong>Google Play Billing (Google LLC):</strong> Handles all subscription transactions, 3-day free trial tracking, and billing processing. No credit card details ever reach Unlimited VPN servers.</li>
+          <li><strong>Google Play Billing (Google LLC):</strong> Handles all subscription transactions, premium subscription tracking, and billing processing. No credit card details ever reach Unlimited VPN servers.</li>
           <li><strong>Cloudflare Workers & Supabase:</strong> Serverless API layer and database infrastructure used strictly for anonymous device peer registration, crash reporting, and subscription entitlement validation.</li>
           <li><strong>VPNResellers:</strong> Our trusted upstream VPN infrastructure provider used dynamically via the backend to fetch available VPN server locations and provision encrypted WireGuard accounts.</li>
         </ul>

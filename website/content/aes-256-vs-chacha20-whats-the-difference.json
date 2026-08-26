@@ -23,7 +23,7 @@
     },
     {
       "heading": "Why Does WireGuard Use ChaCha20 (And Why Does It Matter For Unlimited VPN)?",
-      "content": "<p>The introduction of the WireGuard VPN protocol revolutionized the cybersecurity industry. Built from the ground up to be leaner, faster, and more secure than older protocols like OpenVPN, WireGuard deliberately chose ChaCha20 as its sole symmetric encryption cipher. By abandoning the bloated, legacy code of AES-256, WireGuard achieves instant connection times and unparalleled throughput.</p><p>For users of <strong>Unlimited VPN</strong>, this technological synergy translates directly into a superior mobile experience. Unlimited VPN is an Android-focused application that heavily leverages the WireGuard protocol and, by extension, the ChaCha20 cipher. This means you get the absolute best speeds possible on your Android device while benefiting from a strict no-logs policy that guarantees your browsing history is never recorded. The efficiency of ChaCha20 ensures that Unlimited VPN runs quietly in the background without draining your battery. If you haven't experienced the difference that a modern, ChaCha20-powered WireGuard VPN can make on your smartphone, Unlimited VPN offers a risk-free 3-Day free trial to test these blazing speeds for yourself.</p>"
+      "content": "<p>The introduction of the WireGuard VPN protocol revolutionized the cybersecurity industry. Built from the ground up to be leaner, faster, and more secure than older protocols like OpenVPN, WireGuard deliberately chose ChaCha20 as its sole symmetric encryption cipher. By abandoning the bloated, legacy code of AES-256, WireGuard achieves instant connection times and unparalleled throughput.</p><p>For users of <strong>Unlimited VPN</strong>, this technological synergy translates directly into a superior mobile experience. Unlimited VPN is an Android-focused application that heavily leverages the WireGuard protocol and, by extension, the ChaCha20 cipher. This means you get the absolute best speeds possible on your Android device while benefiting from a strict no-logs policy that guarantees your browsing history is never recorded. The efficiency of ChaCha20 ensures that Unlimited VPN runs quietly in the background without draining your battery. If you haven't experienced the difference that a modern, ChaCha20-powered WireGuard VPN can make on your smartphone, Unlimited VPN offers a risk-free premium subscription to test these blazing speeds for yourself.</p>"
     },
     {
       "heading": "Which Encryption Protocol Should You Choose?",
@@ -45,7 +45,7 @@
     },
     {
       "q": "How can I try ChaCha20 encryption on my Android device?",
-      "a": "The easiest way is to download a WireGuard-based VPN application. Unlimited VPN utilizes WireGuard and ChaCha20 by default, offering a strict no-logs policy and a 3-Day free trial so you can experience the performance and battery benefits firsthand."
+      "a": "The easiest way is to download a WireGuard-based VPN application. Unlimited VPN utilizes WireGuard and ChaCha20 by default, offering a strict no-logs policy and a premium subscription so you can experience the performance and battery benefits firsthand."
     }
   ]
 }

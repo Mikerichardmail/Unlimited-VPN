@@ -257,7 +257,7 @@ ${generateSchema(post)}
           <div class="blog-cta-banner">
             <div class="blog-cta-content">
               <h3>Protect Your Android Phone with Unlimited VPN</h3>
-              <p>Experience ultra-fast WireGuard® speeds, zero bandwidth throttling, and ironclad privacy with our 3-Day Free Trial.</p>
+              <p>Experience ultra-fast WireGuard® speeds, zero bandwidth throttling, and ironclad privacy with our Premium Subscription.</p>
             </div>
             <a href="${PLAY_STORE_URL}" target="_blank" class="btn btn-primary" style="white-space:nowrap;">Download Free</a>
           </div>
@@ -356,7 +356,7 @@ ${generateSchema(post)}
           <h4>Android App</h4>
           <ul class="footer-links">
             <li><a href="${PLAY_STORE_URL}" target="_blank">Google Play Store</a></li>
-            <li><a href="../pricing">3-Day Free Trial</a></li>
+            <li><a href="../pricing">Premium Subscription</a></li>
           </ul>
         </div>
       </div>
@@ -573,7 +573,7 @@ function generateBlogHubHtml(isSubdirectory = false) {
           <h4>Android App</h4>
           <ul class="footer-links">
             <li><a href="${PLAY_STORE_URL}" target="_blank">Google Play Store</a></li>
-            <li><a href="${relPath}/pricing">3-Day Free Trial</a></li>
+            <li><a href="${relPath}/pricing">Premium Subscription</a></li>
           </ul>
         </div>
       </div>

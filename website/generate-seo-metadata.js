@@ -10,7 +10,7 @@ const corePagesSeo = [
     path: "/",
     filename: "index.html",
     title: "Unlimited VPN - Fast, Secure WireGuard® VPN for Android",
-    metaDescription: "Download Unlimited VPN for Android. Ultra-fast WireGuard protocol, strict no-logs privacy, low ping mobile gaming, and 3-Day Free Trial across all plans.",
+    metaDescription: "Download Unlimited VPN for Android. Ultra-fast WireGuard protocol, strict no-logs privacy, low ping mobile gaming, and Premium Subscription across all plans.",
     keywords: ["best android vpn", "free android vpn", "wireguard vpn", "fast vpn proxy", "unlimited vpn android", "low ping vpn", "no log vpn"],
     canonical: `${SITE_URL}/`,
     ogType: "website",
@@ -33,9 +33,9 @@ const corePagesSeo = [
   {
     path: "/pricing",
     filename: "pricing.html",
-    title: "VPN Pricing Plans & 3-Day Free Trial - Unlimited VPN",
-    metaDescription: "Simple, transparent VPN pricing. Choose Monthly, 6-Month, or Annual plans with an unthrottled 3-Day Free Trial. 100% money-back guarantee.",
-    keywords: ["vpn pricing", "free trial vpn android", "cheap vpn plan", "unlimited vpn subscription", "vpn free trial no commitment"],
+    title: "VPN Pricing Plans & Premium Subscription - Unlimited VPN",
+    metaDescription: "Simple, transparent VPN pricing. Choose Monthly, 6-Month, or Annual plans with an unthrottled Premium Subscription. 100% money-back guarantee.",
+    keywords: ["vpn pricing", "premium subscription vpn android", "cheap vpn plan", "unlimited vpn subscription", "vpn premium subscription no commitment"],
     canonical: `${SITE_URL}/pricing.html`,
     ogType: "website",
     schemaType: "WebPage",
@@ -563,7 +563,7 @@ const allPosts = seoCatalog.blogPosts.map(p => {
       },
       {
         heading: "Why Choose Unlimited VPN?",
-        content: \`<p><strong>Unlimited VPN</strong> combines cutting-edge WireGuard protocol architecture with a strict privacy commitment, ultra-low gaming latency, and a 3-Day Free Trial across all plans.</p>\`
+        content: \`<p><strong>Unlimited VPN</strong> combines cutting-edge WireGuard protocol architecture with a strict privacy commitment, ultra-low gaming latency, and a Premium Subscription across all plans.</p>\`
       }
     ];
     faqs = [
@@ -777,7 +777,7 @@ function generatePostHtml(post, relatedPosts) {
           <div class="blog-cta-banner">
             <div class="blog-cta-content">
               <h3>Protect Your Android Phone with Unlimited VPN</h3>
-              <p>Experience ultra-fast WireGuard® speeds, zero bandwidth throttling, and ironclad privacy with our 3-Day Free Trial.</p>
+              <p>Experience ultra-fast WireGuard® speeds, zero bandwidth throttling, and ironclad privacy with our Premium Subscription.</p>
             </div>
             <a href="\${PLAY_STORE_URL}" target="_blank" class="btn btn-primary" style="white-space:nowrap;">Download Free</a>
           </div>
@@ -876,7 +876,7 @@ function generatePostHtml(post, relatedPosts) {
           <h4>Android App</h4>
           <ul class="footer-links">
             <li><a href="\${PLAY_STORE_URL}" target="_blank">Google Play Store</a></li>
-            <li><a href="../pricing">3-Day Free Trial</a></li>
+            <li><a href="../pricing">Premium Subscription</a></li>
           </ul>
         </div>
       </div>
@@ -1093,7 +1093,7 @@ function generateBlogHubHtml(isSubdirectory = false) {
           <h4>Android App</h4>
           <ul class="footer-links">
             <li><a href="\${PLAY_STORE_URL}" target="_blank">Google Play Store</a></li>
-            <li><a href="\${relPath}/pricing">3-Day Free Trial</a></li>
+            <li><a href="\${relPath}/pricing">Premium Subscription</a></li>
           </ul>
         </div>
       </div>

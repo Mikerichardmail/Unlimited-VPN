@@ -23,7 +23,7 @@
     },
     {
       "heading": "How Can You Set Up Split Tunneling on Unlimited VPN for Android?",
-      "content": "<p>Setting up split tunneling on your Android device is incredibly straightforward, especially with a user-centric application like Unlimited VPN. Android OS natively supports app-based split tunneling, making the integration seamless.</p><p>First, download and install the Unlimited VPN app on your Android device. We offer a generous 3-Day free trial so you can experience the premium features risk-free. Once installed and launched, navigate to the settings menu. Look for the feature labeled 'Split Tunneling', 'Per-App Routing', or 'Bypass VPN'.</p><p>When you enable this feature, you will be presented with a list of all the applications installed on your smartphone. You can then toggle the switches next to each app to determine its routing behavior. For instance, you might choose to route your web browser and social media apps through the secure WireGuard tunnel to prevent ISP tracking, while leaving your local weather and smart home apps directly connected to your local network. Once your preferences are saved, the VPN will dynamically route your traffic in real-time, providing you with a perfectly tailored balance of uncompromised privacy and blazing-fast performance.</p>"
+      "content": "<p>Setting up split tunneling on your Android device is incredibly straightforward, especially with a user-centric application like Unlimited VPN. Android OS natively supports app-based split tunneling, making the integration seamless.</p><p>First, download and install the Unlimited VPN app on your Android device. We offer a generous premium subscription so you can experience the premium features risk-free. Once installed and launched, navigate to the settings menu. Look for the feature labeled 'Split Tunneling', 'Per-App Routing', or 'Bypass VPN'.</p><p>When you enable this feature, you will be presented with a list of all the applications installed on your smartphone. You can then toggle the switches next to each app to determine its routing behavior. For instance, you might choose to route your web browser and social media apps through the secure WireGuard tunnel to prevent ISP tracking, while leaving your local weather and smart home apps directly connected to your local network. Once your preferences are saved, the VPN will dynamically route your traffic in real-time, providing you with a perfectly tailored balance of uncompromised privacy and blazing-fast performance.</p>"
     }
   ],
   "faqs": [
@@ -37,7 +37,7 @@
     },
     {
       "q": "Does Unlimited VPN support split tunneling on Android?",
-      "a": "Yes, Unlimited VPN offers robust app-based split tunneling for Android. Combined with our fast WireGuard implementation and strict no-logs policy, you can easily customize which apps use the secure tunnel while enjoying a 3-Day free trial."
+      "a": "Yes, Unlimited VPN offers robust app-based split tunneling for Android. Combined with our fast WireGuard implementation and strict no-logs policy, you can easily customize which apps use the secure tunnel while enjoying a premium subscription."
     },
     {
       "q": "Can I use split tunneling for specific websites only?",

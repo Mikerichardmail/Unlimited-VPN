@@ -20,7 +20,7 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
 async function generateArticle(post) {
     const prompt = `You are an expert cybersecurity and VPN copywriter. 
 Write a 1,000-word SEO-optimized blog post for the title: "${post.title}".
-Context about the product: It is called "Unlimited VPN", an Android VPN app using WireGuard, no-logs, and has a 3-Day free trial.
+Context about the product: It is called "Unlimited VPN", an Android VPN app using WireGuard, no-logs, and has a premium subscription.
 
 You MUST follow these Generative Engine Optimization (GEO) rules:
 1. Provide a "Quick Summary" (BLUF - Bottom Line Up Front) in 2-3 sentences.
