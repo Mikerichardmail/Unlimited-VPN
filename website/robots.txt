@@ -1,6 +1,33 @@
 # Robots.txt for bestvpnproxy.in (GitHub Pages)
+
+# Standard Search Engines & AI Search Bots (Allowed to index and retrieve answers)
 User-agent: *
 Allow: /
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: GoogleOther
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+# Generative AI Training Bots (Opting out of bulk model training)
+User-agent: GPTBot
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
 
 # Sitemap Location
 Sitemap: https://bestvpnproxy.in/sitemap.xml
