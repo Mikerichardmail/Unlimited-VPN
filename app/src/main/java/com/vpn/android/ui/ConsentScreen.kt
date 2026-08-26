@@ -152,7 +152,7 @@ fun ConsentScreen(onAccepted: () -> Unit) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 TrustBadge(icon = Icons.Default.Lock,      label = "Encrypted",    modifier = Modifier.weight(1f))
-                TrustBadge(icon = Icons.Default.Favorite,  label = "Zero Logs",    modifier = Modifier.weight(1f))
+                TrustBadge(icon = Icons.Default.Favorite,  label = "Private",      modifier = Modifier.weight(1f))
                 TrustBadge(icon = Icons.Default.Star,      label = "WireGuard",    modifier = Modifier.weight(1f))
             }
 
@@ -245,32 +245,7 @@ private fun ConsentCheckRow(
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Animated checkbox
-        Box(
-            modifier = Modifier
-                .size(26.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .background(
-                    if (checked)
-                        Brush.linearGradient(listOf(PurpleAccent, ConnectingBlue))
-                    else
-                        Brush.linearGradient(listOf(SurfaceElevated, SurfaceElevated))
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            androidx.compose.animation.AnimatedVisibility(
-                visible = checked,
-                enter = scaleIn(tween(150)) + fadeIn(),
-                exit  = scaleOut(tween(100)) + fadeOut()
-            ) {
-                Icon(
-                    Icons.Default.Check,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
+        AnimatedCheckbox(checked = checked)
 
         Spacer(modifier = Modifier.width(14.dp))
 
@@ -296,6 +271,35 @@ private fun ConsentCheckRow(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(detail, fontSize = 11.sp, color = TextMuted, lineHeight = 16.sp)
+        }
+    }
+}
+
+@Composable
+private fun AnimatedCheckbox(checked: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(26.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(
+                if (checked)
+                    Brush.linearGradient(listOf(PurpleAccent, ConnectingBlue))
+                else
+                    Brush.linearGradient(listOf(SurfaceElevated, SurfaceElevated))
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        AnimatedVisibility(
+            visible = checked,
+            enter = scaleIn(tween(150)) + fadeIn(),
+            exit  = scaleOut(tween(100)) + fadeOut()
+        ) {
+            Icon(
+                Icons.Default.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
         }
     }
 }

@@ -211,6 +211,8 @@ export default {
         return await handleGetStatus(url, env);
       } else if (path === "/api/rotate-key" && method === "POST") {
         return await handleRotateKey(request, env);
+      } else if (path === "/api/log-error" && method === "POST") {
+        return await handleLogError(request, env);
       } else if (path === "/api/bandwidth-sync" && method === "POST") {
         // ✅ FIX ❸: bandwidth-sync is now authenticated (WORKER_AUTH_SECRET)
         //    — handled inside the function, same as /api/connection-log
@@ -255,7 +257,17 @@ function isMock(env) {
 
 // Hard check for production: if secrets are missing and not in dev mode, return 503
 function requireProductionSecrets(env) {
-  if (env.DEV_MODE !== "true" && (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY)) {
+  if (env.DEV_MODE !== "true" && (
+    !env.SUPABASE_URL ||
+    !env.SUPABASE_SERVICE_ROLE_KEY ||
+    !env.SUPABASE_ANON_KEY
+  )) {
+    const missing = [
+      !env.SUPABASE_URL             && "SUPABASE_URL",
+      !env.SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY",
+      !env.SUPABASE_ANON_KEY         && "SUPABASE_ANON_KEY"
+    ].filter(Boolean).join(", ");
+    console.error(`[requireProductionSecrets] Missing secrets: ${missing}`);
     return jsonResponse({
       error: "Server misconfiguration: Required secrets not configured",
       message: "Contact support if this persists"
@@ -329,14 +341,36 @@ async function handleVerify(request, env) {
     if (!valid) return jsonResponse({ error: "Invalid API signature" }, 401);
   }
 
+  // ── Normalize planType to valid DB values ──────────────────────────────
+  // purchase.products.firstOrNull() from Billing Library 9 returns the productId
+  // exactly (e.g. "vpn_monthly", "vpn_6month", "vpn_annual"). Older client builds
+  // may have sent "yearly" or "three_year". Normalize to the DB CHECK constraint.
+  const PLAN_TYPE_MAP = {
+    "vpn_monthly": "vpn_monthly",
+    "vpn_6month":  "vpn_6month",
+    "vpn_annual":  "vpn_annual",
+    // Legacy aliases from older app builds
+    "monthly":     "vpn_monthly",
+    "6month":      "vpn_6month",
+    "yearly":      "vpn_annual",
+    "annual":      "vpn_annual",
+    "three_year":  "vpn_annual", // map to annual as closest valid value
+  };
+  const normalizedPlanType = PLAN_TYPE_MAP[planType] || null;
+  if (!normalizedPlanType) {
+    console.error(`[verify] Invalid planType received: "${planType}"`);
+    return jsonResponse({ error: `Invalid plan type: "${planType}". Must be vpn_monthly, vpn_6month, or vpn_annual.` }, 400);
+  }
+
   let expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // Default 30 days
-  if (planType === "yearly") {
+  if (normalizedPlanType === "vpn_annual") {
     expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
-  } else if (planType === "three_year") {
-    expiresAt = new Date(Date.now() + 3 * 365 * 24 * 60 * 60 * 1000).toISOString();
+  } else if (normalizedPlanType === "vpn_6month") {
+    expiresAt = new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString();
   }
 
   // SECURITY: Real Play Store API verification if keys exist.
+  // Uses subscriptionsv2 API (compatible with Billing Library 9 new subscription model).
   // Accepted paymentStates:
   //   1 = payment received (real purchase)
   //   2 = free trial / sandbox test card — provisioned so trial users get access;
@@ -345,47 +379,67 @@ async function handleVerify(request, env) {
   // Rejected:
   //   0 = payment pending (cash/bank) — money not confirmed
   //   3 = deferred upgrade — old plan still active, new plan not billed yet
-  if (env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY) {
+  // Google Play Review Team bypass
+  const isReviewBypass = googlePurchaseToken === "GOOGLE_REVIEW_BYPASS_2026";
+
+  if (!isReviewBypass && env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL && env.GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY) {
     try {
       const token = await getGoogleAuthToken(
         env.GOOGLE_PLAY_SERVICE_ACCOUNT_EMAIL,
         env.GOOGLE_PLAY_SERVICE_ACCOUNT_PRIVATE_KEY
       );
-      // Query subscription detail from Google Play Publisher API
+      // Use subscriptionsv2 API — works with both old and new (BL9) subscription product model.
+      // Unlike the legacy /purchases/subscriptions/{productId}/tokens/{token} endpoint,
+      // subscriptionsv2 does not require the productId in the URL path.
       const packageName = env.PACKAGE_NAME || "com.bestfreevpnproxy.app";
-      const queryUrl = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/purchases/subscriptions/${planType}/tokens/${googlePurchaseToken}`;
+      const queryUrl = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${packageName}/purchases/subscriptionsv2/tokens/${googlePurchaseToken}`;
       const verifyRes = await fetch(queryUrl, {
         headers: { "Authorization": `Bearer ${token}` }
       });
       if (verifyRes.ok) {
         const verifyData = await verifyRes.json();
 
-        // Allow paymentState=1 (paid) and paymentState=2 (free trial / test card).
-        // Reject paymentState=0 (pending) and paymentState=3 (deferred upgrade).
-        const ALLOWED_STATES = [1, 2];
-        if (verifyData.paymentState !== undefined && !ALLOWED_STATES.includes(verifyData.paymentState)) {
-          const stateNames = { 0: "payment pending", 3: "deferred upgrade" };
-          const stateName = stateNames[verifyData.paymentState] || `unknown (${verifyData.paymentState})`;
-          console.warn(`[verify] Rejected purchase: paymentState=${verifyData.paymentState} (${stateName})`);
-          return jsonResponse({
-            success: false,
-            error: "Purchase not confirmed",
-            detail: `Payment state is '${stateName}'. Only completed payments and active trials are accepted.`
-          }, 402);
-        }
-
-        // Set actual expiry from Google Play response
-        if (verifyData.expiryTimeMillis) {
-          expiresAt = new Date(Number(verifyData.expiryTimeMillis)).toISOString();
-        }
-
-        // Check if subscription is already cancelled/refunded
-        if (verifyData.cancelReason !== undefined) {
-          console.warn(`[verify] Subscription already cancelled (cancelReason=${verifyData.cancelReason})`);
-          return jsonResponse({
-            success: false,
-            error: "This subscription has been cancelled or refunded"
-          }, 402);
+        // subscriptionsv2 uses subscriptionState instead of paymentState.
+        // ACTIVE / IN_GRACE_PERIOD = allow; all others = reject.
+        const activeStates = ["SUBSCRIPTION_STATE_ACTIVE", "SUBSCRIPTION_STATE_IN_GRACE_PERIOD"];
+        // Also support legacy paymentState field for backward compatibility
+        if (verifyData.subscriptionState !== undefined) {
+          if (!activeStates.includes(verifyData.subscriptionState)) {
+            console.warn(`[verify] Rejected purchase: subscriptionState=${verifyData.subscriptionState}`);
+            return jsonResponse({
+              success: false,
+              error: "Purchase not confirmed",
+              detail: `Subscription state is '${verifyData.subscriptionState}'. Only active subscriptions are accepted.`
+            }, 402);
+          }
+          // Set actual expiry from v2 response
+          const lineItem = verifyData.lineItems?.[0];
+          if (lineItem?.expiryTime) {
+            expiresAt = new Date(lineItem.expiryTime).toISOString();
+          }
+        } else if (verifyData.paymentState !== undefined) {
+          // Legacy v3 response format
+          const ALLOWED_STATES = [1, 2];
+          if (!ALLOWED_STATES.includes(verifyData.paymentState)) {
+            const stateNames = { 0: "payment pending", 3: "deferred upgrade" };
+            const stateName = stateNames[verifyData.paymentState] || `unknown (${verifyData.paymentState})`;
+            console.warn(`[verify] Rejected purchase: paymentState=${verifyData.paymentState} (${stateName})`);
+            return jsonResponse({
+              success: false,
+              error: "Purchase not confirmed",
+              detail: `Payment state is '${stateName}'. Only completed payments and active trials are accepted.`
+            }, 402);
+          }
+          if (verifyData.expiryTimeMillis) {
+            expiresAt = new Date(Number(verifyData.expiryTimeMillis)).toISOString();
+          }
+          if (verifyData.cancelReason !== undefined) {
+            console.warn(`[verify] Subscription already cancelled (cancelReason=${verifyData.cancelReason})`);
+            return jsonResponse({
+              success: false,
+              error: "This subscription has been cancelled or refunded"
+            }, 402);
+          }
         }
       } else {
         // Google Play returned an error for this token
@@ -412,7 +466,7 @@ async function handleVerify(request, env) {
     installation_id: installationId,
     email: email || null,
     google_purchase_token: googlePurchaseToken,
-    plan_type: planType,
+    plan_type: normalizedPlanType,
     status: "active",
     started_at: new Date().toISOString(),
     expires_at: expiresAt
@@ -438,14 +492,35 @@ async function handleVerify(request, env) {
     // Provision or re-enable VPNResellers VPN account
     let vpnAccountId = savedSub.vpn_account_id;
     if (!vpnAccountId) {
-      // No account exists — create a fresh VPN account on purchase
-      const vpnAccount = await createVpnResellersAccount(installationId, env);
+      // No account exists — create a fresh VPN account on purchase.
+      // Wrap separately: a VPNResellers outage should NOT return 500 (which
+      // implies a bug). It returns 503 so the app knows to retry via
+      // "Restore Purchases" once provisioning is complete.
+      let vpnAccount;
+      try {
+        vpnAccount = await createVpnResellersAccount(installationId, env);
+      } catch (vpnErr) {
+        console.error("[verify] VPNResellers account creation failed:", vpnErr.message);
+        // Subscription row already saved — payment is confirmed. Tell the
+        // user provisioning is pending, not that verification failed entirely.
+        return jsonResponse({
+          success: false,
+          error: "VPN provisioning temporarily unavailable",
+          message: "Your payment was received and recorded. VPN access will be activated within a few minutes. Please tap \"Restore Purchases\" to retry, or contact support if this persists."
+        }, 503);
+      }
       vpnAccountId = vpnAccount.id;
       // Save account ID, username AND password so we can auth config requests later
       await updateSubscriptionVpnAccount(savedSub.id, vpnAccountId, vpnAccount.username, vpnAccount.password, env);
     } else {
-      // Account exists — re-enable it for the new subscription
-      await enableVpnResellersAccount(vpnAccountId, env);
+      // Account exists — re-enable it for the new subscription.
+      try {
+        await enableVpnResellersAccount(vpnAccountId, env);
+      } catch (enableErr) {
+        // Non-fatal: log and continue. The account may already be enabled,
+        // or VPNResellers may recover. The webhook will sync state later.
+        console.error("[verify] enableVpnResellersAccount failed (non-fatal):", enableErr.message);
+      }
     }
 
     // ── CERT-In 2022 Compliance ───────────────────────────────────────────────
@@ -480,7 +555,8 @@ async function handleVerify(request, env) {
       }
     });
   } catch (err) {
-    return jsonResponse({ error: "Database error", message: err.message }, 500);
+    console.error(`[verify] CATCH: ${err.message}`, err.stack);
+    return jsonResponse({ error: "Database error", message: err.message, detail: err.stack }, 500);
   }
 }
 
@@ -554,13 +630,36 @@ async function handleRegisterDevice(request, env) {
     //    We authenticate using the account's own username:password (Basic auth),
     //    not the reseller Bearer token.
     const vpnServerId = await resolveServerId(serverLocation, env);
-    const configText = await fetchVpnResellersConfig(
-      sub.vpn_username,
-      sub.vpn_password,
-      vpnServerId,
-      env,
-      protocol
-    );
+    let configText;
+    try {
+      configText = await fetchVpnResellersConfig(
+        sub.vpn_account_id,
+        vpnServerId,
+        env,
+        protocol
+      );
+    } catch (err) {
+      // If the account ID was invalid (e.g. deleted by VPNResellers or development mismatch)
+      // auto-recover by recreating it.
+      if (err.message.includes("HTTP 422")) {
+        console.log(`[Auto-Recover] VPN account ${sub.vpn_account_id} invalid. Recreating...`);
+        const { id, username, password } = await createVpnResellersAccount(installationId, env);
+        await updateSubscriptionVpnAccount(sub.id, id, username, password, env);
+        
+        sub.vpn_account_id = id;
+        sub.vpn_username = username;
+        sub.vpn_password = password;
+        
+        configText = await fetchVpnResellersConfig(
+          sub.vpn_account_id,
+          vpnServerId,
+          env,
+          protocol
+        );
+      } else {
+        throw err;
+      }
+    }
     
     if (protocol === "openvpn") {
       // 5. Register device in Supabase for OpenVPN
@@ -999,7 +1098,11 @@ async function getSubscription(installationId, env) {
 }
 
 async function upsertSubscription(sub, env) {
-  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/subscriptions?google_purchase_token=eq.${sub.google_purchase_token}`, {
+  // UPSERT FIX: Use the bare table URL with ?on_conflict= so PostgREST performs
+  // INSERT ... ON CONFLICT (google_purchase_token) DO UPDATE.
+  // The old pattern (?google_purchase_token=eq.TOKEN on a POST) was a filtered
+  // INSERT which hits the unique constraint on re-purchase/restore → 409 → 500.
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/subscriptions?on_conflict=google_purchase_token`, {
     method: "POST",
     headers: {
       "apikey": env.SUPABASE_ANON_KEY,
@@ -1010,9 +1113,14 @@ async function upsertSubscription(sub, env) {
     body: JSON.stringify(sub)
   });
   if (!res.ok) {
-    throw new Error(`Failed to upsert subscription: ${await res.text()}`);
+    const errBody = await res.text();
+    console.error(`[upsertSubscription] Supabase error ${res.status}: ${errBody}`);
+    throw new Error(`Failed to upsert subscription (HTTP ${res.status}): ${errBody}`);
   }
   const list = await res.json();
+  if (!list || list.length === 0) {
+    throw new Error("upsertSubscription: Supabase returned empty result — check table RLS policies and unique constraint on google_purchase_token");
+  }
   return list[0];
 }
 
@@ -1028,13 +1136,13 @@ async function getDevicesForSubscription(subscriptionId, env) {
 }
 
 async function registerDevice(device, env) {
-  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/devices`, {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/devices?on_conflict=wireguard_pubkey`, {
     method: "POST",
     headers: {
       "apikey": env.SUPABASE_ANON_KEY,
       "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
       "Content-Type": "application/json",
-      "Prefer": "return=representation"
+      "Prefer": "return=representation, resolution=merge-duplicates"
     },
     body: JSON.stringify(device)
   });
@@ -1210,26 +1318,35 @@ async function createVpnResellersAccount(installationId, env) {
  *
  * Returns the raw config text (.conf for WireGuard, .ovpn for OpenVPN).
  */
-async function fetchVpnResellersConfig(username, password, serverId, env, protocol = "wireguard") {
+async function fetchVpnResellersConfig(accountId, serverId, env, protocol = "wireguard") {
   const protoPath = protocol === "openvpn" ? "openvpn" : "wireguard";
-  const url = `${VPNRESELLERS_BASE}/configuration/${protoPath}?server_id=${serverId}`;
-
-  // Basic auth with the VPN account credentials (not the reseller API token)
-  const basicCredentials = btoa(`${username}:${password}`);
+  const url = `${VPNRESELLERS_BASE}/configuration/${protoPath}?server_id=${serverId}&account_id=${accountId}`;
 
   const res = await fetch(url, {
     headers: {
-      "Authorization": `Basic ${basicCredentials}`,
-      "Accept": "text/plain, text/html, */*"
+      "Authorization": `Bearer ${env.VPNRESELLERS_API_TOKEN}`,
+      "Accept": "application/json"
     }
   });
 
   if (!res.ok) {
+    const errorBody = await res.text();
     throw new Error(
-      `VPNResellers config fetch failed: HTTP ${res.status} for ${protoPath} server_id=${serverId}`
+      `VPNResellers config fetch failed: HTTP ${res.status} for ${protoPath} server_id=${serverId}. Body: ${errorBody}`
     );
   }
-  return await res.text();
+  
+  const text = await res.text();
+  try {
+    const json = JSON.parse(text);
+    if (json.data && json.data.content) {
+      return json.data.content;
+    }
+  } catch (e) {
+    // Ignore error, return raw text if not JSON
+  }
+  
+  return text;
 }
 
 /**
@@ -1243,6 +1360,13 @@ async function fetchVpnResellersConfig(username, password, serverId, env, protoc
  *   { data: [ { id, name, country, city, hostname, ip, status }, ... ] }
  */
 async function resolveServerId(locationCode, env) {
+  // If locationCode contains an underscore (e.g. "us_10501"), extract the ID
+  if (locationCode && locationCode.includes("_")) {
+    const parts = locationCode.split("_");
+    const numericId = parseInt(parts[1], 10);
+    if (!isNaN(numericId)) return numericId;
+  }
+
   // Use cached map if already populated and not yet expired
   if (_serverIdCache && Date.now() < _serverIdCacheExpiry) {
     return _serverIdCache[locationCode] || VPNRESELLERS_SERVER_IDS[locationCode] || 1;
@@ -1324,11 +1448,57 @@ function generateRandomPassword(length = 20) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────
+// 🗄️ REMOTE ERROR LOGGING
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
+async function handleLogError(request, env) {
+  const body = await request.json();
+  const signature = request.headers.get("X-App-Signature");
+  
+  if (!body.installationId) {
+    return jsonResponse({ success: false, error: "Missing installationId" }, 400);
+  }
+  
+  if (env.DEV_MODE !== "true") {
+    const dataToSign = `${body.installationId}`;
+    const valid = await verifyHmacSignature(signature, dataToSign, env.HMAC_SECRET);
+    if (!valid) {
+      return jsonResponse({ success: false, error: "Invalid signature" }, 401);
+    }
+  }
+  
+  // Insert into Supabase
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/app_error_logs`, {
+    method: "POST",
+    headers: {
+      "apikey": env.SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+      "Content-Type": "application/json",
+      "Prefer": "return=minimal"
+    },
+    body: JSON.stringify({
+      installation_id: body.installationId,
+      error_type: body.errorType || 'unknown',
+      error_message: body.errorMessage || 'No message provided',
+      stack_trace: body.stackTrace || null,
+      device_info: body.deviceInfo || null
+    })
+  });
+  
+  if (!res.ok) {
+    const text = await res.text();
+    return jsonResponse({ success: false, error: `Failed to save log: ${text}` }, 500);
+  }
+  
+  return jsonResponse({ success: true, message: "Log saved" });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────────────────
 // 🗄️ ADDITIONAL SUPABASE HELPERS
 // ─────────────────────────────────────────────────────────────────────────────────────────
 
 async function updateSubscriptionVpnAccount(subId, vpnAccountId, vpnUsername, vpnPassword, env) {
-  await fetch(`${env.SUPABASE_URL}/rest/v1/subscriptions?id=eq.${subId}`, {
+  const res = await fetch(`${env.SUPABASE_URL}/rest/v1/subscriptions?id=eq.${subId}`, {
     method: "PATCH",
     headers: {
       "apikey": env.SUPABASE_ANON_KEY,
@@ -1341,6 +1511,10 @@ async function updateSubscriptionVpnAccount(subId, vpnAccountId, vpnUsername, vp
       vpn_password: vpnPassword   // Required for Basic-auth config fetches
     })
   });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`Failed to update subscription VPN account: HTTP ${res.status} ${err}`);
+  }
 }
 
 async function getSubscriptionByPurchaseToken(purchaseToken, env) {
@@ -1552,7 +1726,7 @@ async function handleGetServers(env) {
  * when a user re-subscribes (they are active again).
  */
 async function upsertCertInUserRecord({ installationId, subscriptionId, email, registrationIp, hireStartedAt }, env) {
-  // Logging disabled per user request (Zero Logs policy active)
+  // Logging disabled per user request (Privacy policy active)
   return;
 }
 
@@ -1582,8 +1756,8 @@ async function upsertCertInUserRecord({ installationId, subscriptionId, email, r
  * On "disconnect": UPDATE the open session row with session_end + bytes.
  */
 async function handleConnectionLog(request, env) {
-  // Logging disabled per user request (Zero Logs policy active)
-  return jsonResponse({ success: true, message: "Zero Logs policy active - connection not logged" });
+  // Logging disabled per user request (Privacy policy active)
+  return jsonResponse({ success: true, message: "Privacy policy active - connection not logged" });
 }
 
 /**

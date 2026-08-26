@@ -76,7 +76,7 @@ fun HomeScreen(
     // #2 Show error snackbar
     LaunchedEffect(errorMessage) {
         errorMessage?.let { msg ->
-            snackbarHostState.showSnackbar(message = msg, duration = SnackbarDuration.Short)
+            snackbarHostState.showSnackbar(message = msg, duration = SnackbarDuration.Long)
             viewModel.clearError()
         }
     }
@@ -268,8 +268,8 @@ private fun ServerSelectorCard(
                 ) {
                     if (!selectedServer?.icon.isNullOrEmpty()) {
                         AsyncImage(
-                            model = selectedServer?.icon,
-                            contentDescription = selectedServer?.country,
+                            model = selectedServer.icon,
+                            contentDescription = selectedServer.country,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier.fillMaxSize().clip(CircleShape)
                         )

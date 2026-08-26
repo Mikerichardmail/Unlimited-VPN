@@ -10,6 +10,8 @@ import androidx.security.crypto.MasterKey
 import com.wireguard.crypto.KeyPair
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.util.UUID
@@ -29,17 +31,32 @@ class LocalSettingsManager @Inject constructor(
     // ✅ SECURITY FIX: Sensitive fields stored in EncryptedSharedPreferences
     //    backed by Android Keystore — survives uninstall, hardware-protected.
     // -------------------------------------------------------------------------
+    // ✅ FIX #9: EncryptedSharedPreferences creation wrapped in try/catch.
+    // On some devices (rooted, factory reset mid-session, corrupted Keystore),
+    // creating EncryptedSharedPreferences throws GeneralSecurityException or
+    // IOException. We recover by wiping the corrupted file and recreating it.
+    // The user will need to log in again, but the app won't crash.
     private val encryptedPrefs: SharedPreferences by lazy {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context,
-            "vpn_secure_prefs",          // filename (will be encrypted)
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+        fun createEncryptedPrefs(): SharedPreferences {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            return EncryptedSharedPreferences.create(
+                context,
+                "vpn_secure_prefs",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
+        try {
+            createEncryptedPrefs()
+        } catch (e: Exception) {
+            // Keystore is corrupted — wipe the encrypted file and start fresh.
+            // The user will be treated as a new install on next launch.
+            context.deleteSharedPreferences("vpn_secure_prefs")
+            createEncryptedPrefs()
+        }
     }
 
     // Keys stored in EncryptedSharedPreferences (sensitive)
@@ -127,22 +144,35 @@ class LocalSettingsManager @Inject constructor(
 
     // ───────────────────────────────────────────────────────────────────────────
     // 4. Subscription Status  (ENCRYPTED — moved from DataStore in security fix ❶)
+    //
+    // ✅ FIX: Previously these were DataStore.data.map { encryptedPrefs.get() }.
+    //    EncryptedSharedPreferences writes never trigger DataStore emissions, so
+    //    the UI would never update after a purchase. Now we use MutableStateFlow
+    //    seeded synchronously from EncryptedSharedPreferences at construction
+    //    time, and updated in-place on every write.
     // ───────────────────────────────────────────────────────────────────────────
 
-    val isSubscriptionActiveFlow: Flow<Boolean> = dataStore.data.map { _ ->
+    private val _subscriptionActive = MutableStateFlow(
         encryptedPrefs.getBoolean(ENC_SUBSCRIPTION_ACTIVE, false)
-    }
-
-    val subscriptionExpiryFlow: Flow<String> = dataStore.data.map { _ ->
+    )
+    private val _subscriptionExpiry = MutableStateFlow(
         encryptedPrefs.getString(ENC_SUBSCRIPTION_EXPIRY, "") ?: ""
-    }
+    )
+
+    val isSubscriptionActiveFlow: Flow<Boolean> = _subscriptionActive.asStateFlow()
+    val subscriptionExpiryFlow: Flow<String> = _subscriptionExpiry.asStateFlow()
 
     suspend fun setSubscriptionStatus(isActive: Boolean, expiryDate: String) {
+        // Write to encrypted disk storage first (persistent)
         encryptedPrefs.edit()
             .putBoolean(ENC_SUBSCRIPTION_ACTIVE, isActive)
             .putString(ENC_SUBSCRIPTION_EXPIRY,  expiryDate)
             .apply()
+        // Then update the in-memory flows so all UI collectors react immediately
+        _subscriptionActive.value = isActive
+        _subscriptionExpiry.value = expiryDate
     }
+
 
     // ─────────────────────────────────────────────────────────────────────────
     // 6. Selected Server Location  (non-sensitive — standard DataStore)

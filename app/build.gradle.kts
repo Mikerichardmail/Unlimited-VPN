@@ -2,9 +2,8 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
+    id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.compose")  // Required for Kotlin 2.0 + Compose
-    id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
 }
 
@@ -24,8 +23,8 @@ android {
         applicationId = "com.bestfreevpnproxy.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "10.0"
+        versionCode = 27
+        versionName = "27.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -42,13 +41,9 @@ android {
             buildConfigField("Boolean", "ENABLE_NETWORK_LOGGING", "true")
         }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             buildConfigField("Boolean", "ENABLE_NETWORK_LOGGING", "false")
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
         }
     }
     compileOptions {
@@ -114,9 +109,9 @@ dependencies {
     // implementation(project(":openvpn"))
 
     // ── Dagger Hilt ──────────────────────────────────────────────────────────
-    // Hilt 2.56.2 is compatible with Kotlin 2.0 metadata format.
-    implementation("com.google.dagger:hilt-android:2.56.2")
-    kapt("com.google.dagger:hilt-compiler:2.56.2")
+    // Hilt 2.60.1 is compatible with Kotlin 2.3.0 metadata format.
+    implementation("com.google.dagger:hilt-android:2.60.1")
+    ksp("com.google.dagger:hilt-compiler:2.60.1")
 
     // Retrofit & OkHttp
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

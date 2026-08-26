@@ -126,9 +126,6 @@ fun ServerSelectionScreen(viewModel: VpnViewModel, onBack: () -> Unit) {
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                     items(filtered) { server ->
-                        // Derive the 2-letter country code from the server ID.
-                        // VPNResellers IDs are formatted as "<cc>_<numeric_id>" (e.g. "us_2",
-                        // "de_7") so we take everything before the first underscore or digit.
                         val cc = server.id.lowercase()
                             .substringBefore("_")
                             .take(2)
@@ -146,7 +143,8 @@ fun ServerSelectionScreen(viewModel: VpnViewModel, onBack: () -> Unit) {
                             onClick = { viewModel.selectServer(server); onBack() }
                         )
                     }
-                } else {
+                } else if (searchQuery.isNotBlank()) {
+                    // Search returned nothing
                     item {
                         Box(
                             modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
@@ -159,7 +157,50 @@ fun ServerSelectionScreen(viewModel: VpnViewModel, onBack: () -> Unit) {
                             }
                         }
                     }
+                } else {
+                    // Servers failed to load
+                    item {
+                        Box(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = DisconnectRed,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                                Text(
+                                    "Could not load servers",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    "Check your internet connection\nand tap Retry.",
+                                    color = TextMuted,
+                                    fontSize = 13.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Button(
+                                    onClick = { viewModel.loadServers() },
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent)
+                                ) {
+                                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Retry", fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
                 }
+
             } // end else (not loading)
         }
     }

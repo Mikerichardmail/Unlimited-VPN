@@ -59,6 +59,11 @@ class BillingManager @Inject constructor(
     // Track retry count for exponential backoff
     private var retryCount = 0
 
+    // ✅ FIX #11: Queue of purchase tokens to acknowledge once billing reconnects.
+    // If acknowledgePurchase() is called while !billingClient.isReady, the token
+    // is added here and flushed when onBillingSetupFinished(OK) fires.
+    private val pendingAckQueue = mutableListOf<String>()
+
     init {
         startConnection()
     }
@@ -70,9 +75,19 @@ class BillingManager @Inject constructor(
                     BillingClient.BillingResponseCode.OK -> {
                         retryCount = 0
                         Log.d(TAG, "Billing connected successfully")
+                        // Drain any tokens queued while disconnected
+                        val queued = synchronized(pendingAckQueue) {
+                            pendingAckQueue.toList().also { pendingAckQueue.clear() }
+                        }
+                        queued.forEach { token -> acknowledgePurchaseInternal(token) }
+
+                        // FIX (Cause N): Query existing purchases on every connection.
+                        // This catches any PURCHASED+unacknowledged purchase from a
+                        // previous session that was never acknowledged (e.g. app killed
+                        // before ack, network failure during verify, etc.).
+                        scope.launch { queryAndAcknowledgeExistingPurchases() }
                     }
                     BillingClient.BillingResponseCode.BILLING_UNAVAILABLE -> {
-                        // ✅ PBL 9: Covers OEM kids-mode / system-blocked Play Store
                         Log.w(TAG, "Billing unavailable: ${billingResult.debugMessage}")
                     }
                     else -> {
@@ -92,6 +107,32 @@ class BillingManager @Inject constructor(
                 }
             }
         })
+    }
+
+    /**
+     * FIX (Cause N): Called on every successful billing connection.
+     * Finds any PURCHASED subscription that is NOT yet acknowledged and acknowledges it.
+     * This is the safety net for purchases that survived an app kill, crash, or
+     * network failure during the original verify+acknowledge flow.
+     */
+    private suspend fun queryAndAcknowledgeExistingPurchases() {
+        val params = QueryPurchasesParams.newBuilder()
+            .setProductType(BillingClient.ProductType.SUBS)
+            .build()
+        billingClient.queryPurchasesAsync(params) { billingResult, purchasesList ->
+            if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
+                Log.w(TAG, "queryAndAcknowledge: queryPurchasesAsync failed [${billingResult.responseCode}]")
+                return@queryPurchasesAsync
+            }
+            Log.d(TAG, "queryAndAcknowledge: found ${purchasesList.size} subscription(s)")
+            purchasesList.forEach { purchase ->
+                Log.d(TAG, "  purchase: ${purchase.products} state=${purchase.purchaseState} acknowledged=${purchase.isAcknowledged}")
+                if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED && !purchase.isAcknowledged) {
+                    Log.d(TAG, "  → unacknowledged PURCHASED found, acknowledging now")
+                    acknowledgePurchaseInternal(purchase.purchaseToken)
+                }
+            }
+        }
     }
 
     fun launchPurchaseFlow(activity: Activity, productId: String) {
@@ -145,27 +186,38 @@ class BillingManager @Inject constructor(
         when (billingResult.responseCode) {
             BillingClient.BillingResponseCode.OK -> {
                 purchases?.forEach { purchase ->
+                    Log.d(TAG, "onPurchasesUpdated: product=${purchase.products} state=${purchase.purchaseState} acknowledged=${purchase.isAcknowledged}")
+
                     if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
                         val purchaseToken = purchase.purchaseToken
-                        val productId = purchase.products.firstOrNull() ?: "yearly"
+                        val productId     = purchase.products.firstOrNull() ?: SKU_ANNUAL
 
-                        // ✅ FIX ❶: Acknowledge only after server verifies the token.
+                        // FIX (Cause Q): Acknowledge immediately when state == PURCHASED
+                        // and not already acknowledged. Do NOT wait for server verify to
+                        // call acknowledge — Google Play's 3-day window starts NOW.
+                        // The server verify still happens (for entitlement), but ack is
+                        // a separate obligation to Google Play that must happen promptly.
+                        if (!purchase.isAcknowledged) {
+                            Log.d(TAG, "onPurchasesUpdated: acknowledging $productId immediately")
+                            acknowledgePurchase(purchaseToken)
+                        }
+
+                        // Emit to VpnViewModel so it can verify with backend and
+                        // grant/restore the subscription entitlement.
                         val pending = PendingPurchase(
                             purchaseToken = purchaseToken,
                             productId     = productId,
+                            // acknowledgeIfVerified kept for legacy compat — ack already
+                            // called above, but isAcknowledged guard makes it idempotent.
                             acknowledgeIfVerified = {
-                                if (!purchase.isAcknowledged) {
-                                    val ackParams = AcknowledgePurchaseParams.newBuilder()
-                                        .setPurchaseToken(purchaseToken)
-                                        .build()
-                                    billingClient.acknowledgePurchase(ackParams) { result ->
-                                        Log.d(TAG, "Acknowledge result: ${result.responseCode}")
-                                    }
-                                }
+                                if (!purchase.isAcknowledged) acknowledgePurchase(purchaseToken)
                             }
                         )
-
                         scope.launch { _purchaseSuccessFlow.emit(pending) }
+
+                    } else if (purchase.purchaseState == Purchase.PurchaseState.PENDING) {
+                        Log.d(TAG, "onPurchasesUpdated: purchase PENDING — not acknowledging yet")
+                        // Do NOT acknowledge or grant permanent entitlement for PENDING
                     }
                 }
             }
@@ -194,6 +246,37 @@ class BillingManager @Inject constructor(
             } else {
                 Log.e(TAG, "queryPurchasesAsync failed [${billingResult.responseCode}]: ${billingResult.debugMessage}")
                 onResult(emptyList())
+            }
+        }
+    }
+
+    fun acknowledgePurchase(purchaseToken: String) {
+        if (!billingClient.isReady) {
+            // ✅ FIX #11: Queue token instead of silently dropping it.
+            // It will be acknowledged as soon as billing reconnects.
+            synchronized(pendingAckQueue) { pendingAckQueue.add(purchaseToken) }
+            startConnection()
+            return
+        }
+        acknowledgePurchaseInternal(purchaseToken)
+    }
+
+    private fun acknowledgePurchaseInternal(purchaseToken: String) {
+        val ackParams = AcknowledgePurchaseParams.newBuilder()
+            .setPurchaseToken(purchaseToken)
+            .build()
+        billingClient.acknowledgePurchase(ackParams) { result ->
+            // FIX (Cause G): Always check the BillingResult response code.
+            if (result.responseCode == BillingClient.BillingResponseCode.OK) {
+                Log.d(TAG, "acknowledgePurchase: SUCCESS — token acknowledged")
+            } else {
+                Log.e(TAG, "acknowledgePurchase: FAILED [${result.responseCode}] ${result.debugMessage}")
+                // Re-queue for retry on next billing reconnect if it's a transient error
+                // (not ITEM_NOT_OWNED which means already ack'd on Play's side)
+                if (result.responseCode != BillingClient.BillingResponseCode.ITEM_NOT_OWNED) {
+                    synchronized(pendingAckQueue) { pendingAckQueue.add(purchaseToken) }
+                    Log.d(TAG, "acknowledgePurchase: queued for retry on next connection")
+                }
             }
         }
     }

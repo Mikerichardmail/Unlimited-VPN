@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS devices (
     subscription_id UUID REFERENCES subscriptions(id) ON DELETE CASCADE,
     wireguard_pubkey TEXT UNIQUE NOT NULL,
     assigned_ip TEXT NOT NULL,
-    server_location TEXT CHECK (server_location IN ('in', 'us', 'sg')),
+    server_location TEXT,
     registered_at TIMESTAMPTZ DEFAULT now(),
     last_handshake TIMESTAMPTZ,
     is_active BOOLEAN DEFAULT true
@@ -125,18 +125,36 @@ CREATE TABLE IF NOT EXISTS certin_connection_logs (
     session_end TIMESTAMPTZ,               -- NULL until disconnect detected
     source_ip TEXT NOT NULL,               -- user's real IP (endpoint seen by WireGuard)
     assigned_vpn_ip TEXT NOT NULL,         -- WireGuard IP assigned (e.g. 10.0.0.5)
-    server_location TEXT NOT NULL          -- server id: 'in', 'us', 'sg'
-        CHECK (server_location IN ('in', 'us', 'sg')),
+    server_location TEXT NOT NULL,         -- server id: 'in', 'us', 'sg', 'cz', etc
     bytes_sent BIGINT NOT NULL DEFAULT 0,
     bytes_received BIGINT NOT NULL DEFAULT 0,
     -- Auto-calculated 180-day expiry (CERT-In ICT log requirement)
-    delete_after TIMESTAMPTZ NOT NULL
-        GENERATED ALWAYS AS (session_start + INTERVAL '180 days') STORED,
+    delete_after TIMESTAMPTZ NOT NULL DEFAULT (now() + INTERVAL '180 days'),
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_certin_conn_installation_id
     ON certin_connection_logs(installation_id);
+-- Index on date for efficient pruning
+CREATE INDEX IF NOT EXISTS connection_logs_date_idx ON certin_connection_logs(created_at);
+
+-- =========================================================================================
+-- APP ERROR LOGS (for Android crash reporting and VPN failures)
+-- =========================================================================================
+
+CREATE TABLE IF NOT EXISTS app_error_logs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    installation_id TEXT,
+    error_type TEXT NOT NULL,         -- e.g. 'vpn_failure', 'crash'
+    error_message TEXT NOT NULL,
+    stack_trace TEXT,
+    device_info TEXT,                 -- JSON string containing OS version, device model, etc.
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Index for searching errors by installation ID
+CREATE INDEX IF NOT EXISTS idx_app_error_logs_installation_id ON app_error_logs(installation_id);
+
 CREATE INDEX IF NOT EXISTS idx_certin_conn_delete_after
     ON certin_connection_logs(delete_after);
 CREATE INDEX IF NOT EXISTS idx_certin_conn_session_start

@@ -8,6 +8,7 @@ import com.vpn.android.BuildConfig
 import com.vpn.android.data.VpnRepository
 import com.vpn.android.data.local.LocalSettingsManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -23,10 +24,13 @@ class VpnManager @Inject constructor(
     private val wireGuardClient: WireGuardClient,
     private val openVpnClient: OpenVpnClient
 ) {
-    // Current active client state could be tracked here, or just delegate to WG client state for now
     val vpnState = wireGuardClient.state
-    
-    private var activeProtocol = "wireguard"
+
+    // BUG 8 FIX: Track the protocol used for the active tunnel in-memory.
+    // DataStore writes are async — if the user switches protocol then disconnects
+    // before the write flushes, protocolFlow.first() would read the wrong protocol
+    // and stop the wrong VPN client (leaving the active tunnel up).
+    @Volatile private var activeProtocol: String = "wireguard"
 
     /**
      * Check if VPN permission is required
@@ -46,7 +50,6 @@ class VpnManager @Inject constructor(
     suspend fun startVpn(serverLocation: String, killSwitchEnabled: Boolean = false, protocol: String = "wireguard"): Boolean =
         withContext(Dispatchers.IO) {
             try {
-                activeProtocol = protocol
                 // 1. Register/Fetch device config from backend
                 val response = repository.registerDevice(serverLocation, protocol)
                 if (!response.success || response.config == null) {
@@ -63,25 +66,50 @@ class VpnManager @Inject constructor(
                 }
 
                 if (success) {
+                    // BUG 8 FIX: Capture active protocol in-memory BEFORE async DataStore write
+                    activeProtocol = protocol
                     localSettings.setSelectedServerId(serverLocation)
+                    // Protocol also persisted to DataStore for crash recovery (survives process death)
                 }
                 success
             } catch (e: Exception) {
-                if (BuildConfig.DEBUG) {
-                    Log.e(TAG, "Failed to start VPN", e)
-                }
+                // BUG 2 FIX: Always log errors in all build variants
+                Log.e(TAG, "Failed to start VPN: ${e.javaClass.simpleName}: ${e.message}")
+                
+                // Remote error logging
+                val stackTrace = Log.getStackTraceString(e)
+                val deviceInfo = "OS: Android ${android.os.Build.VERSION.RELEASE}, Model: ${android.os.Build.MODEL}, AppVersion: ${BuildConfig.VERSION_NAME}"
+                repository.logErrorToBackend(
+                    errorType = "vpn_failure",
+                    errorMessage = "${e.javaClass.simpleName}: ${e.message}",
+                    stackTrace = stackTrace,
+                    deviceInfo = deviceInfo
+                )
+                
                 false
             }
         }
 
     /**
-     * Stop the VPN tunnel
+     * Stop the VPN tunnel.
+     * BUG 8 FIX: Uses in-memory activeProtocol (set at startVpn() time) as the primary
+     * source. Falls back to DataStore only if no tunnel was started in this process
+     * lifetime (e.g., after a process death and restart).
      */
     suspend fun stopVpn() = withContext(Dispatchers.IO) {
-        if (activeProtocol == "openvpn") {
+        // In-memory value is authoritative for the current session
+        val protocol = if (activeProtocol.isNotEmpty()) {
+            activeProtocol
+        } else {
+            // Process restarted — fall back to persisted value
+            localSettings.protocolFlow.first()
+        }
+        if (protocol == "openvpn") {
             openVpnClient.stop()
         } else {
             wireGuardClient.stop()
         }
+        activeProtocol = "wireguard" // reset after stop
     }
 }
+

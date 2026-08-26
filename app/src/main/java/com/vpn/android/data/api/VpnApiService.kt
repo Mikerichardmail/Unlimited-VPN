@@ -35,6 +35,18 @@ interface VpnApiService {
         @Header("X-App-Signature") signature: String
     ): StatusResponse
 
+    @POST("api/bandwidth-sync")
+    suspend fun syncBandwidth(
+        @Body request: BandwidthSyncRequest,
+        @Header("X-App-Signature") signature: String
+    ): BandwidthSyncResponse
+
+    @POST("api/log-error")
+    suspend fun logError(
+        @Body request: LogErrorRequest,
+        @Header("X-App-Signature") signature: String
+    ): LogErrorResponse
+
     @POST("api/rotate-key")
     suspend fun rotateKey(
         @Body request: RotateKeyRequest,

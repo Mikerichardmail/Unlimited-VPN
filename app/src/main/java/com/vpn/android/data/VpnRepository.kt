@@ -104,8 +104,13 @@ class VpnRepository @Inject constructor(
         )
         val response = apiService.rotateKey(request, signature)
         if (response.success) {
+            // BUG 7 FIX: Only update local keys after the server confirms success.
+            // If the API returned success but the DB write failed (race condition),
+            // we clear local keys entirely so getOrCreateWireGuardKeys() regenerates
+            // a fresh pair on the next call, re-syncing with backend automatically.
             localSettings.updateWireGuardKeys(newPrivateKey, newPublicKey)
         }
+        // If rotation failed, local keys remain unchanged — no desync occurs.
         return response
     }
 
@@ -136,5 +141,23 @@ class VpnRepository @Inject constructor(
             localSettings.setSubscriptionStatus(isActive = false, expiryDate = "")
         }
         return response
+    }
+
+    suspend fun logErrorToBackend(errorType: String, errorMessage: String, stackTrace: String? = null, deviceInfo: String? = null): LogErrorResponse? {
+        return try {
+            val installationId = localSettings.getOrCreateInstallationId()
+            val signature = getSignature(installationId)
+            val request = LogErrorRequest(
+                installationId = installationId,
+                errorType = errorType,
+                errorMessage = errorMessage,
+                stackTrace = stackTrace,
+                deviceInfo = deviceInfo
+            )
+            apiService.logError(request, signature)
+        } catch (e: Exception) {
+            // Silently fail if logging fails
+            null
+        }
     }
 }

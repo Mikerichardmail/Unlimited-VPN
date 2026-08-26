@@ -268,6 +268,51 @@ fun SettingsScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Promo Code input row
+            var promoInput by remember { androidx.compose.runtime.mutableStateOf("") }
+            Card(
+                colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Redeem Promo Code", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text("Enter a code to unlock VPN access.", fontSize = 11.sp, color = TextSecondary)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = promoInput,
+                            onValueChange = { promoInput = it },
+                            placeholder = { Text("Code", color = TextMuted, fontSize = 13.sp) },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = PurpleAccent,
+                                unfocusedBorderColor = SurfaceElevated
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = { 
+                                if (promoInput.isNotEmpty()) {
+                                    viewModel.redeemPromoCode(promoInput)
+                                    promoInput = ""
+                                } 
+                            },
+                            enabled = promoInput.isNotEmpty(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent)
+                        ) {
+                            Text("Redeem", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Section: Support ──────────────────────────────────────────

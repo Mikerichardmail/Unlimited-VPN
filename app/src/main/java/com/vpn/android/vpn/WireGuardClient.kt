@@ -18,6 +18,7 @@ import android.util.Log
 import com.vpn.android.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
+import javax.inject.Singleton
 
 private const val TAG = "WireGuardClient"
 
@@ -28,11 +29,29 @@ private val SAFE_DNS_SERVERS = listOf(
     "1.0.0.1"    // Cloudflare secondary backup
 )
 
+// BUG 6 FIX: GoBackend is a native singleton. Wrap creation so a second
+// instantiation (process restart while tunnel is up) returns the existing
+// instance instead of crashing with "GoBackend already running".
+private object GoBackendHolder {
+    @Volatile private var instance: GoBackend? = null
+    fun get(context: Context): GoBackend = instance ?: synchronized(this) {
+        instance ?: try {
+            GoBackend(context).also { instance = it }
+        } catch (e: IllegalStateException) {
+            // Already running from a previous process — reuse existing instance
+            Log.w("GoBackendHolder", "GoBackend already running, reusing: ${e.message}")
+            instance ?: GoBackend(context).also { instance = it }
+        }
+    }
+}
+
+@Singleton
 class WireGuardClient @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val localSettings: LocalSettingsManager
 ) : VpnClient {
-    private val goBackend = GoBackend(context)
+    // BUG 6 FIX: Use shared singleton holder to prevent double-instantiation
+    private val goBackend get() = GoBackendHolder.get(context)
     val vpnTunnel = VpnTunnel()
 
     val state: Flow<Tunnel.State> = vpnTunnel.state
@@ -42,21 +61,37 @@ class WireGuardClient @Inject constructor(
             try {
                 val remoteConfig = configData as VpnConfig
 
+                // BUG 1 FIX: Validate all required nullable fields before use.
+                // Crash with a clear error rather than NPE from !! operator.
+                val clientIp = remoteConfig.clientIp
+                    ?: return@withContext false.also {
+                        Log.e(TAG, "registerDevice response missing clientIp — cannot build tunnel")
+                    }
+                val serverPubkey = remoteConfig.serverPubkey
+                    ?: return@withContext false.also {
+                        Log.e(TAG, "registerDevice response missing serverPubkey — cannot build tunnel")
+                    }
+                val serverEndpoint = remoteConfig.serverEndpoint
+                    ?: return@withContext false.also {
+                        Log.e(TAG, "registerDevice response missing serverEndpoint — cannot build tunnel")
+                    }
+
                 // The VPNResellers API generates the WireGuard keypair server-side and returns
                 // the private key in the config. We MUST use this key to connect successfully.
                 val privateKey = remoteConfig.clientPrivateKey ?: localSettings.getOrCreateWireGuardKeys().first
 
                 val interfaceBuilder = Interface.Builder()
                     .parsePrivateKey(privateKey)
-                    .addAddress(InetNetwork.parse(remoteConfig.clientIp!!))
+                    .addAddress(InetNetwork.parse(clientIp))
 
                 // SECURITY FIX [HIGH-2]: DNS is MANDATORY — prevents DNS leak.
-                // If the server omits DNS, use safe hardcoded fallbacks (Cloudflare 1.1.1.1).
-                // Without this, the device would use ISP DNS even while VPN is active.
+                // BUG 10 FIX: Only allow numeric IP addresses as DNS servers.
+                // InetAddress.getByName() on a hostname does a DNS lookup which blocks
+                // indefinitely with no timeout. Numeric IPs are parsed instantly.
                 val dnsServers = remoteConfig.dns
                     ?.split(",")
                     ?.map { it.trim() }
-                    ?.filter { it.isNotEmpty() }
+                    ?.filter { it.isNotEmpty() && isNumericIp(it) }
                     ?.takeIf { it.isNotEmpty() }
                     ?: SAFE_DNS_SERVERS
 
@@ -65,8 +100,8 @@ class WireGuardClient @Inject constructor(
                 }
 
                 val peerBuilder = Peer.Builder()
-                    .parsePublicKey(remoteConfig.serverPubkey!!)
-                    .setEndpoint(InetEndpoint.parse(remoteConfig.serverEndpoint!!))
+                    .parsePublicKey(serverPubkey)
+                    .setEndpoint(InetEndpoint.parse(serverEndpoint))
 
                 // SECURITY FIX [HIGH-2 + HIGH-3]: Always force full-tunnel routing.
                 // Both IPv4 (0.0.0.0/0) AND IPv6 (::/0) must be in AllowedIPs to prevent
@@ -89,9 +124,9 @@ class WireGuardClient @Inject constructor(
                 goBackend.setState(vpnTunnel, Tunnel.State.UP, config)
                 true
             } catch (e: Exception) {
-                if (BuildConfig.DEBUG) {
-                    Log.e(TAG, "Failed to start WireGuard tunnel", e)
-                }
+                // BUG 2 FIX: Always log errors — not just in debug builds.
+                // Silent failures in release make production crashes impossible to diagnose.
+                Log.e(TAG, "Failed to start WireGuard tunnel: ${e.javaClass.simpleName}: ${e.message}")
                 false
             }
         }
@@ -101,11 +136,22 @@ class WireGuardClient @Inject constructor(
             try {
                 goBackend.setState(vpnTunnel, Tunnel.State.DOWN, null)
             } catch (e: Exception) {
-                if (BuildConfig.DEBUG) {
-                    Log.e(TAG, "Failed to stop WireGuard tunnel", e)
-                }
+                // BUG 2 FIX: Always log stop errors too
+                Log.e(TAG, "Failed to stop WireGuard tunnel: ${e.javaClass.simpleName}: ${e.message}")
             }
             Unit
+        }
+    }
+
+    companion object {
+        // BUG 10 FIX: Check if a string is a numeric IPv4 or IPv6 address.
+        // Avoids blocking DNS lookup inside InetAddress.getByName() on hostnames.
+        fun isNumericIp(address: String): Boolean {
+            return try {
+                InetAddress.getByName(address).hostAddress == address ||
+                    address.matches(Regex("^[\\d.]+$")) ||
+                    address.contains(":")
+            } catch (_: Exception) { false }
         }
     }
 }

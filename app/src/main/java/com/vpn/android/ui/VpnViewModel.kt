@@ -42,6 +42,10 @@ class VpnViewModel @Inject constructor(
         viewModelScope, SharingStarted.WhileSubscribed(5000), Tunnel.State.DOWN
     )
 
+    // ── Init guard — true once all async startup tasks have completed ────────
+    private val _isInitialized = MutableStateFlow(false)
+    val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+
     private val _servers = MutableStateFlow<List<Server>>(emptyList())
     val servers: StateFlow<List<Server>> = _servers.asStateFlow()
 
@@ -120,6 +124,12 @@ class VpnViewModel @Inject constructor(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
+    // ── Purchase confirmed signal ────────────────────────────────────────
+    // Fires immediately when Google Play confirms PURCHASED — before server verify.
+    // Used by MainActivity to close the Paywall without waiting for the backend.
+    private val _purchaseJustConfirmed = kotlinx.coroutines.channels.Channel<Unit>(kotlinx.coroutines.channels.Channel.BUFFERED)
+    val purchaseJustConfirmed: Flow<Unit> = _purchaseJustConfirmed.receiveAsFlow()
+
     // ── #7 Live latency ──────────────────────────────────────────────────
     private val _serverLatencies = MutableStateFlow<Map<String, Int>>(emptyMap())
     val serverLatencies: StateFlow<Map<String, Int>> = _serverLatencies.asStateFlow()
@@ -140,6 +150,10 @@ class VpnViewModel @Inject constructor(
             // Silent restore on launch — check Google Play for existing subscription
             silentRestoreOnLaunch()
 
+            // ✅ FIX: Signal that all async init tasks are done so the UI can
+            // safely read subscription/consent state for navigation decisions.
+            _isInitialized.value = true
+
             localSettings.selectedServerIdFlow.collect { serverId ->
                 _selectedServer.value = _servers.value.find { it.id == serverId }
             }
@@ -150,18 +164,48 @@ class VpnViewModel @Inject constructor(
             //    confirms the token. This prevents the user being charged without getting
             //    VPN access (e.g. if the backend is temporarily down at purchase time).
             billingManager.purchaseSuccessFlow.collect { pending ->
-                val response = repository.verifySubscription(
-                    pending.purchaseToken,
-                    pending.productId,
-                    userEmail.value.ifEmpty { null }
-                )
-                if (response.success) {
-                    // Server confirmed — now safe to acknowledge to Google
-                    pending.acknowledgeIfVerified()
+                // Signal the UI to close the Paywall immediately — don't make the
+                // user wait for server verification to see the Home screen.
+                _purchaseJustConfirmed.send(Unit)
+
+                try {
+                    val response = repository.verifySubscription(
+                        pending.purchaseToken,
+                        pending.productId,
+                        userEmail.value.ifEmpty { null }
+                    )
+                    if (response.success) {
+                        pending.acknowledgeIfVerified()
+                    } else {
+                        // Server rejected the purchase token — tell the user
+                        _errorMessage.value = "Purchase could not be verified: ${response.message}. " +
+                            "Contact support if you were charged."
+                    }
+                } catch (e: retrofit2.HttpException) {
+                    Log.e("VpnViewModel", "Verify purchase HTTP ${e.code()}", e)
+                    _errorMessage.value = when (e.code()) {
+                        503 -> "VPN access is being activated — your payment was received. " +
+                            "Please tap \"Restore Purchases\" in a few minutes."
+                        500 -> "Server error verifying purchase (HTTP 500). " +
+                            "Tap \"Restore Purchases\" to retry, or contact support."
+                        401, 403 -> "Purchase verification rejected (HTTP ${e.code()}). " +
+                            "Contact support if you were charged."
+                        else -> "Purchase verification failed (HTTP ${e.code()}). " +
+                            "Tap \"Restore Purchases\" to retry."
+                    }
+                } catch (e: java.net.UnknownHostException) {
+                    Log.e("VpnViewModel", "Verify purchase: no internet", e)
+                    _errorMessage.value = "No internet connection. " +
+                        "Tap \"Restore Purchases\" once you're connected."
+                } catch (e: java.net.SocketTimeoutException) {
+                    Log.e("VpnViewModel", "Verify purchase: timeout", e)
+                    _errorMessage.value = "Purchase verification timed out. " +
+                        "Tap \"Restore Purchases\" to retry."
+                } catch (e: Exception) {
+                    Log.e("VpnViewModel", "Verify purchase failed", e)
+                    _errorMessage.value = "Purchase verification failed: ${e.message ?: "unknown error"}. " +
+                        "Tap \"Restore Purchases\" to retry."
                 }
-                // If verify fails, we do NOT acknowledge. Google will retry the
-                // purchase flow and the user can contact support. The token is
-                // NOT consumed, so no double-charge occurs.
             }
         }
 
@@ -173,21 +217,26 @@ class VpnViewModel @Inject constructor(
                 // Reset counter on successful connection
                 if (newState == Tunnel.State.UP) reconnectAttempts = 0
 
-                // Tunnel went DOWN but we didn't trigger it (not from toggleVpn)
-                if (previousState == Tunnel.State.UP && newState == Tunnel.State.DOWN && !_isConnecting.value) {
-                    stopTimer()
-                    VpnNotificationManager.update(appContext, VpnNotificationManager.buildDisconnectedNotification(appContext))
-                    if (reconnectAttempts < 5) {
-                        // Exponential backoff: 2s, 4s, 8s, 16s, 32s
-                        val backoffMs = minOf(2000L * (1L shl reconnectAttempts), 32_000L)
-                        delay(backoffMs)
-                        if (vpnState.value == Tunnel.State.DOWN) {
-                            reconnectAttempts++
-                            _errorMessage.value = "VPN dropped — reconnecting… (attempt $reconnectAttempts/5)"
-                            connectVpn()
-                        }
+                if (previousState == Tunnel.State.UP && newState == Tunnel.State.DOWN) {
+                    if (isUserInitiatedDisconnect) {
+                        // Expected drop because user tapped disconnect
+                        isUserInitiatedDisconnect = false
                     } else {
-                        _errorMessage.value = "Connection lost. Please tap to reconnect."
+                        // Unexpected drop, try to reconnect
+                        stopTimer()
+                        VpnNotificationManager.update(appContext, VpnNotificationManager.buildDisconnectedNotification(appContext))
+                        if (reconnectAttempts < 5) {
+                            // Exponential backoff: 2s, 4s, 8s, 16s, 32s
+                            val backoffMs = minOf(2000L * (1L shl reconnectAttempts), 32_000L)
+                            delay(backoffMs)
+                            if (vpnState.value == Tunnel.State.DOWN) {
+                                reconnectAttempts++
+                                _errorMessage.value = "VPN dropped — reconnecting… (attempt $reconnectAttempts/5)"
+                                connectVpn()
+                            }
+                        } else {
+                            _errorMessage.value = "Connection lost. Please tap to reconnect."
+                        }
                     }
                 }
                 previousState = newState
@@ -197,23 +246,40 @@ class VpnViewModel @Inject constructor(
 
     // ── Server loading ───────────────────────────────────────────────────
 
-    private fun loadServers() {
+    fun loadServers() {
         viewModelScope.launch {
             _isLoadingServers.value = true
-            val list = repository.getServers()
-            if (list.isNotEmpty()) {
-                _servers.value = list
-                val selectedId = localSettings.selectedServerIdFlow.first()
-                _selectedServer.value = list.find { it.id == selectedId } ?: list.firstOrNull()
-            } else {
-                // ✅ FIX ❹: DO NOT fall back to mock servers with fake placeholder pubkeys
-                //    ("IN_PUB_KEY" etc). WireGuard would silently fail to connect while
-                //    showing the UI as if servers are available. Show an error instead.
-                _errorMessage.value = "Could not load server list. Please check your internet connection and try again."
+            try {
+                val list = repository.getServers()
+                if (list.isNotEmpty()) {
+                    _servers.value = list
+                    val selectedId = localSettings.selectedServerIdFlow.first()
+                    _selectedServer.value = list.find { it.id == selectedId } ?: list.firstOrNull()
+                    pingAllServers()
+                } else {
+                    _errorMessage.value = "Server list is empty. The backend returned no servers. " +
+                        "Please try again later or contact support."
+                }
+            } catch (e: retrofit2.HttpException) {
+                val code = e.code()
+                _errorMessage.value = when (code) {
+                    401, 403 -> "Authentication failed (HTTP $code). " +
+                        "The app signature may be misconfigured."
+                    429      -> "Too many requests. Please wait a moment and try again."
+                    503      -> "Server is temporarily unavailable (HTTP 503). Try again later."
+                    else     -> "Failed to load servers (HTTP $code): ${e.message()}"
+                }
+            } catch (e: java.net.UnknownHostException) {
+                _errorMessage.value = "No internet connection. Connect to WiFi or mobile data and try again."
+            } catch (e: java.net.SocketTimeoutException) {
+                _errorMessage.value = "Connection timed out loading servers. " +
+                    "Check your internet connection."
+            } catch (e: Exception) {
+                _errorMessage.value = "Unexpected error loading servers: ${e.message ?: e.javaClass.simpleName}"
+                Log.e("VpnViewModel", "loadServers failed", e)
+            } finally {
+                _isLoadingServers.value = false
             }
-            _isLoadingServers.value = false
-            // Start latency ping after list is loaded
-            pingAllServers()
         }
     }
 
@@ -259,9 +325,13 @@ class VpnViewModel @Inject constructor(
 
     // ── VPN connect / disconnect ─────────────────────────────────────────
 
+    @Volatile
+    private var isUserInitiatedDisconnect = false
+
     fun toggleVpn(onPermissionRequired: () -> Unit) {
         viewModelScope.launch {
             if (vpnState.value == Tunnel.State.UP) {
+                isUserInitiatedDisconnect = true
                 _isConnecting.value = false
                 vpnManager.stopVpn()
                 _isConnectedIp.value = ""
@@ -282,52 +352,69 @@ class VpnViewModel @Inject constructor(
 
     fun connectVpn() {
         viewModelScope.launch {
-            _isConnecting.value  = true
-            _errorMessage.value  = null
+            _isConnecting.value = true
+            _errorMessage.value = null
 
-            // SECURITY: Sync subscription status from server before connecting.
-            // This catches cancellations/expirations that happened since last app open
-            // (e.g. refund processed, subscription expired). Without this, a user who
-            // cancelled could keep using the VPN until the next app restart.
-            val status = repository.getStatus()
-            if (status != null && !status.subscriptionActive) {
-                _isConnecting.value = false
-                _errorMessage.value = "Your subscription is no longer active. Please renew to continue."
-                return@launch
-            }
-
-            val target = _selectedServer.value?.id ?: getBestServerId()
-            val killSwitch = isKillSwitchEnabled.value
-            val protocol = currentProtocol.value
-            val success = vpnManager.startVpn(target, killSwitch, protocol)
-            _isConnecting.value = false
-
-            if (success) {
-                val server = _selectedServer.value ?: _servers.value.find { it.id == target }
-                // Fetch real public VPN IP in background; show server IP instantly as placeholder
-                _isConnectedIp.value = server?.pingIp ?: ""
-                viewModelScope.launch {
-                    val publicIp = fetchPublicIp()
-                    if (publicIp.isNotEmpty()) _isConnectedIp.value = publicIp
+            try {
+                // SECURITY: Verify subscription is still active before connecting.
+                // BUG 4 FIX: If the network is down (getStatus returns null), fall back
+                // to the locally-cached encrypted subscription status rather than silently
+                // skipping the check. This prevents unsubscribed users from connecting
+                // while offline, while still allowing valid subscribers to connect.
+                val status = repository.getStatus()
+                val subscriptionActive = if (status != null) {
+                    status.subscriptionActive
+                } else {
+                    // Network unavailable — use encrypted local cache as authoritative fallback
+                    isSubscriptionActive.value
                 }
-                startTimer()
+                if (!subscriptionActive) {
+                    _errorMessage.value = "Your subscription has expired or was cancelled. " +
+                        "Please renew in Google Play to continue."
+                    return@launch
+                }
 
-                // Update persistent notification
-                VpnNotificationManager.update(
-                    appContext,
-                    VpnNotificationManager.buildConnectedNotification(
+                val target     = _selectedServer.value?.id ?: getBestServerId()
+                val killSwitch = isKillSwitchEnabled.value
+                val protocol   = currentProtocol.value
+                val success    = vpnManager.startVpn(target, killSwitch, protocol)
+
+                if (success) {
+                    val server = _selectedServer.value ?: _servers.value.find { it.id == target }
+                    _isConnectedIp.value = server?.pingIp ?: ""
+                    viewModelScope.launch {
+                        val publicIp = fetchPublicIp()
+                        if (publicIp.isNotEmpty()) _isConnectedIp.value = publicIp
+                    }
+                    startTimer()
+                    VpnNotificationManager.update(
                         appContext,
-                        serverCity    = server?.city    ?: "Unknown",
-                        serverCountry = server?.country ?: "",
-                        elapsedTime   = "00:00:00"
+                        VpnNotificationManager.buildConnectedNotification(
+                            appContext,
+                            serverCity    = server?.city    ?: "Unknown",
+                            serverCountry = server?.country ?: "",
+                            elapsedTime   = "00:00:00"
+                        )
                     )
-                )
+                    requestReviewIfEligible()
+                } else {
+                    _errorMessage.value = "VPN tunnel failed to start. " +
+                        "The server may be unreachable. Try a different server."
+                }
 
-                // #5 In-app review prompt after first successful connection
-                requestReviewIfEligible()
-            } else {
-                // #2 Show error feedback
-                _errorMessage.value = "Connection failed. Check your network and try again."
+            } catch (e: retrofit2.HttpException) {
+                _errorMessage.value = "Server check failed (HTTP ${e.code()}). " +
+                    "Your connection may be blocked or the server is down."
+                Log.e("VpnViewModel", "connectVpn status check failed", e)
+            } catch (e: java.net.UnknownHostException) {
+                _errorMessage.value = "No internet connection. Connect to WiFi or mobile data first."
+            } catch (e: java.net.SocketTimeoutException) {
+                _errorMessage.value = "Connection timed out. Check your internet and try again."
+            } catch (e: Exception) {
+                _errorMessage.value = "Connection error: ${e.message ?: e.javaClass.simpleName}"
+                Log.e("VpnViewModel", "connectVpn failed", e)
+            } finally {
+                _isConnecting.value = false
             }
         }
     }
@@ -436,14 +523,26 @@ class VpnViewModel @Inject constructor(
         viewModelScope.launch {
             if (isSubscriptionActive.value) return@launch
             billingManager.queryActivePurchases { purchases ->
-                val purchase = purchases.firstOrNull()
-                if (purchase != null && purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                // BUG 9 FIX: Pick the most recently purchased item, not just the first.
+                // A user upgrading from monthly → annual has two purchase records;
+                // we must restore the higher-tier / most recent one.
+                val purchase = purchases
+                    .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
+                    .maxByOrNull { it.purchaseTime }
+                if (purchase != null) {
                     viewModelScope.launch {
-                        repository.verifySubscription(
-                            purchase.purchaseToken,
-                            purchase.products.firstOrNull() ?: "vpn_annual",
-                            null
-                        )
+                        try {
+                            val response = repository.verifySubscription(
+                                purchase.purchaseToken,
+                                purchase.products.firstOrNull() ?: "vpn_annual",
+                                null
+                            )
+                            if (response.success && !purchase.isAcknowledged) {
+                                billingManager.acknowledgePurchase(purchase.purchaseToken)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("VpnViewModel", "Silent restore failed", e)
+                        }
                     }
                 }
             }
@@ -497,6 +596,26 @@ class VpnViewModel @Inject constructor(
         viewModelScope.launch { localSettings.setEmail(email) }
     }
 
+    fun redeemPromoCode(code: String) {
+        viewModelScope.launch {
+            try {
+                val response = repository.verifySubscription(
+                    purchaseToken = code,
+                    planType = "vpn_monthly",
+                    email = userEmail.value.ifEmpty { null }
+                )
+                if (response.success) {
+                    _errorMessage.value = "Promo code redeemed successfully! You now have full access."
+                    syncStatus()
+                } else {
+                    _errorMessage.value = "Invalid or expired promo code"
+                }
+            } catch (e: Exception) {
+                _errorMessage.value = "Failed to redeem code: ${e.message}"
+            }
+        }
+    }
+
     fun clearError() { _errorMessage.value = null }
 
     // ── Billing ───────────────────────────────────────────────────────────
@@ -508,20 +627,40 @@ class VpnViewModel @Inject constructor(
     fun restorePurchases() {
         viewModelScope.launch {
             billingManager.queryActivePurchases { purchases ->
-                // Pick the most recent PURCHASED item (not just the first in the list)
                 val purchase = purchases
                     .filter { it.purchaseState == Purchase.PurchaseState.PURCHASED }
                     .maxByOrNull { it.purchaseTime }
-                if (purchase != null) {
-                    viewModelScope.launch {
-                        repository.verifySubscription(
+
+                if (purchase == null) {
+                    _errorMessage.value = "No active Google Play subscription found for this account. " +
+                        "Make sure you are signed in with the same Google account you used to subscribe."
+                    return@queryActivePurchases
+                }
+
+                viewModelScope.launch {
+                    try {
+                        val response = repository.verifySubscription(
                             purchase.purchaseToken,
                             purchase.products.firstOrNull() ?: "vpn_annual",
                             null
                         )
+                        if (response.success) {
+                            if (!purchase.isAcknowledged) {
+                                billingManager.acknowledgePurchase(purchase.purchaseToken)
+                            }
+                            // Success — no message needed, UI will update automatically
+                        } else {
+                            _errorMessage.value = "Restore failed: ${response.message}. " +
+                                "If you believe this is an error, contact support."
+                        }
+                    } catch (e: retrofit2.HttpException) {
+                        _errorMessage.value = "Restore failed — server error (HTTP ${e.code()}). Try again later."
+                    } catch (e: java.net.UnknownHostException) {
+                        _errorMessage.value = "No internet. Connect and tap \"Restore Purchases\" again."
+                    } catch (e: Exception) {
+                        _errorMessage.value = "Restore error: ${e.message ?: "unknown error"}. Try again."
+                        Log.e("VpnViewModel", "restorePurchases failed", e)
                     }
-                } else {
-                    _errorMessage.value = "No active subscription found."
                 }
             }
         }
@@ -588,8 +727,16 @@ class VpnViewModel @Inject constructor(
                 val keyPair = KeyPair()
                 try {
                     repository.rotateKeys(keyPair.privateKey.toBase64(), keyPair.publicKey.toBase64())
+                } catch (e: retrofit2.HttpException) {
+                    // Key rotation failed — warn the user so they know their next
+                    // connection may fail due to a key mismatch with the server.
+                    _errorMessage.value = "Security key rotation failed (HTTP ${e.code()}). " +
+                        "Your VPN connection may stop working. Please reconnect to fix this."
+                    Log.e("VpnViewModel", "Key rotation failed", e)
                 } catch (e: Exception) {
-                    if (BuildConfig.DEBUG) Log.e("VpnViewModel", "Key rotation failed", e)
+                    _errorMessage.value = "Security key rotation failed: ${e.message ?: "network error"}. " +
+                        "Please reconnect your VPN to retry."
+                    Log.e("VpnViewModel", "Key rotation failed", e)
                 }
             }
         }
