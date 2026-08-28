@@ -152,6 +152,9 @@ function generatePostHtml(post, relatedPosts) {
   <meta name="keywords" content="${post.keywords.join(', ')}">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <link rel="canonical" href="${post.canonical}">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../css/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
   
@@ -415,6 +418,9 @@ function generateBlogHubHtml(isSubdirectory = false) {
   <meta name="keywords" content="vpn blog, android vpn guides, vpn tutorials, cybersecurity blog, wireguard guides, online privacy tips">
   <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
   <link rel="canonical" href="${SITE_URL}/blog.html">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="${relPath}/css/styles.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
   
@@ -585,8 +591,8 @@ function generateBlogHubHtml(isSubdirectory = false) {
     </div>
   </footer>
 
-  <script src="${relPath}/js/main.js"></script>
-  <script src="${relPath}/js/blog.js"></script>
+  <script src="${relPath}/js/main.js" defer></script>
+  <script src="${relPath}/js/blog.js" defer></script>
 </body>
 </html>`;
 }
