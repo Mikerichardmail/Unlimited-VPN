@@ -21,3 +21,5 @@ compile_errors.log
 *.jks
 backend/.dev.vars
 
+# Reports & exports
+*.csv

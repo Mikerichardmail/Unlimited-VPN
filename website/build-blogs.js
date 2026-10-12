@@ -68,6 +68,12 @@ function generateSchema(post) {
     "@type": "BlogPosting",
     "headline": post.title,
     "description": post.metaDescription,
+    "image": {
+      "@type": "ImageObject",
+      "url": `${SITE_URL}/og-image.png`,
+      "width": 1200,
+      "height": 630
+    },
     "keywords": post.keywords.join(', '),
     "datePublished": "2026-08-01T00:00:00+00:00",
     "dateModified": "2026-08-25T00:00:00+00:00",
@@ -167,9 +173,17 @@ function generatePostHtml(post, relatedPosts) {
   <meta property="og:description" content="${post.metaDescription}">
   <meta property="og:url" content="${post.canonical}">
   <meta property="og:site_name" content="Unlimited VPN">
+  <meta property="og:image" content="${SITE_URL}/og-image.png">
+  <meta property="og:image:secure_url" content="${SITE_URL}/og-image.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="${post.metaTitle}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${post.metaTitle}">
   <meta name="twitter:description" content="${post.metaDescription}">
+  <meta name="twitter:image" content="${SITE_URL}/og-image.png">
+  <meta name="twitter:image:alt" content="${post.metaTitle}">
 
   <!-- Structured Data JSON-LD -->
   <script type="application/ld+json">
@@ -429,14 +443,22 @@ function generateBlogHubHtml(isSubdirectory = false) {
   <link rel="icon" type="image/png" href="/favicon.png">
   
   <meta property="og:locale" content="en_US">
-  <meta property="og:type" content="blog">
+  <meta property="og:type" content="website">
   <meta property="og:title" content="VPN Knowledge Hub & Android Tutorials - Unlimited VPN Blog">
   <meta property="og:description" content="Explore 100+ expert guides on Android VPN setup, WireGuard protocol, online privacy, DNS leak prevention, gaming ping optimization, and public Wi-Fi security.">
   <meta property="og:url" content="${SITE_URL}/blog.html">
   <meta property="og:site_name" content="Unlimited VPN">
+  <meta property="og:image" content="${SITE_URL}/og-image.png">
+  <meta property="og:image:secure_url" content="${SITE_URL}/og-image.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Unlimited VPN Knowledge Hub">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="VPN Knowledge Hub & Android Tutorials - Unlimited VPN Blog">
   <meta name="twitter:description" content="Explore 100+ expert guides on Android VPN setup, WireGuard protocol, online privacy, DNS leak prevention, gaming ping optimization, and public Wi-Fi security.">
+  <meta name="twitter:image" content="${SITE_URL}/og-image.png">
+  <meta name="twitter:image:alt" content="Unlimited VPN Knowledge Hub">
 </head>
 <body>
 
