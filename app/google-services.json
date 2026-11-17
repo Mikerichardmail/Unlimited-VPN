@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "435859755846",
+    "project_id": "vpn-andriod-6943d",
+    "storage_bucket": "vpn-andriod-6943d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:435859755846:android:2fb4b9ece0c0d1c08c0b47",
+        "android_client_info": {
+          "package_name": "com.bestfreevpnproxy.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBR5jWYa3F6ZMAso-nfGHIqzk7MSYlFq-4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
