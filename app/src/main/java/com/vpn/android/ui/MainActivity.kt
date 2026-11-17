@@ -18,18 +18,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.LocalActivity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dagger.hilt.android.AndroidEntryPoint
+import com.vpn.android.push.PushAndUpdate
 
 // Screen destinations
 enum class AppScreen { Splash, Paywall, Home, ServerSelect, Settings }
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    private val pushAndUpdate = PushAndUpdate(this)        // push + forced update facade
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -124,11 +127,11 @@ fun VpnAppNavigation(viewModel: VpnViewModel = viewModel()) {
 
         // ── Paywall ───────────────────────────────────────────────────
         currentScreen == AppScreen.Paywall -> {
-            val activity = LocalContext.current as Activity
+            val activity = LocalActivity.current
             PaywallScreen(
                 onClose = { currentScreen = AppScreen.Home },
                 onPurchaseComplete = { plan ->
-                    viewModel.buySubscription(activity, plan)
+                    activity?.let { viewModel.buySubscription(it, plan) }
                 },
                 onRestore = { viewModel.restorePurchases() },
                 viewModel = viewModel

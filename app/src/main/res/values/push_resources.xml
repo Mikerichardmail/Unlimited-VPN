@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Push notification accent color -->
+    <color name="push_accent">#FF7C4DFF</color>
+
+    <!-- Push notification channel names -->
+    <string name="push_channel_general">General Announcements</string>
+    <string name="push_channel_promo">Offers &amp; Promotions</string>
+
+    <!-- Notification permission explanation dialog -->
+    <string name="push_perm_title">Stay Updated</string>
+    <string name="push_perm_body">Allow notifications so we can alert you about important VPN service updates and security advisories.</string>
+    <string name="push_perm_allow">Allow</string>
+    <string name="push_perm_later">Later</string>
+
+    <!-- Forced update dialog -->
+    <string name="update_title">Update Required</string>
+    <string name="update_body">A new version is available with important improvements. Your VPN will disconnect briefly while updating.</string>
+    <string name="update_now">Update Now</string>
+    <string name="update_exit">Exit App</string>
+</resources>

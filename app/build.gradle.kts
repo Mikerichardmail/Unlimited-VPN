@@ -5,6 +5,7 @@ plugins {
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.compose")  // Required for Kotlin 2.0 + Compose
     id("com.google.dagger.hilt.android")
+    id("com.google.gms.google-services")
 }
 
 // ✅ SECURITY: Read secrets from local.properties (gitignored — never in source)
@@ -23,8 +24,8 @@ android {
         applicationId = "com.bestfreevpnproxy.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 27
-        versionName = "27.0"
+        versionCode = 35
+        versionName = "35.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -41,8 +42,12 @@ android {
             buildConfigField("Boolean", "ENABLE_NETWORK_LOGGING", "true")
         }
         release {
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             buildConfigField("Boolean", "ENABLE_NETWORK_LOGGING", "false")
         }
     }
@@ -75,13 +80,21 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+        jniLibs {
+            // ✅ 16 KB memory page size compatibility (required by Google Play since Aug 2025)
+            // useLegacyPackaging = false stores .so files UNCOMPRESSED and properly aligned
+            // in the APK zip. This allows the OS to mmap() them directly, which is
+            // required for 16 KB page alignment on Android 15+ devices.
+            // The WireGuard tunnel .so and all other native libs benefit from this.
+            useLegacyPackaging = false
+        }
     }
 }
 
 dependencies {
     // ── Compose BOM ──────────────────────────────────────────────────────────
     // Single BOM controls all Compose library versions consistently.
-    val composeBom = platform("androidx.compose:compose-bom:2025.05.01")
+    val composeBom = platform("androidx.compose:compose-bom:2025.09.00")
     implementation(composeBom)
     androidTestImplementation(composeBom)
 
@@ -102,7 +115,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     // WireGuard SDK
-    implementation("com.wireguard.android:tunnel:1.0.20230706")
+    implementation("com.wireguard.android:tunnel:1.0.20260102")
 
     // OpenVPN (ics-openvpn)
     // TODO: Add ics-openvpn AAR or project dependency here once imported
@@ -133,6 +146,13 @@ dependencies {
     // Google Play In-App Review
     implementation("com.google.android.play:review:2.0.2")
     implementation("com.google.android.play:review-ktx:2.0.2")
+
+    // Firebase Cloud Messaging (push notifications)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
+
+    // Google Play In-App Updates (forced update flow)
+    implementation("com.google.android.play:app-update:2.1.0")
 
     // Core Library Desugaring (required for WireGuard SDK on older API levels)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
